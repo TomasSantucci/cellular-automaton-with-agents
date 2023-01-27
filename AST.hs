@@ -6,7 +6,7 @@ import Data.Strict.Tuple as T
 -- Useful datatypes
 
 type AgentName = String
-type Status = Int
+type Status = String
 type Path = String
 type Point = (Int, Int)
 type Sight = Int
@@ -23,12 +23,8 @@ data Agent           = Agent {
   agentSight :: Sight
 }
 
-showi :: Transitions -> String
-showi [] = ""
-showi ((st, _):rest) = (show st) ++ (showi rest)
-
 instance Show Agent where
-  show (Agent typ point status trans sight) = (show typ) ++ (show point) ++ (show status) ++ (showi trans) ++ (show sight)
+  show ag = (agentType ag) ++ "-" ++ (agentStatus ag)
 
 -- Grammar datatypes
 
@@ -71,6 +67,7 @@ data Comm
 --  | SetupPath Path
   | SeqComm Comm Comm
 --  | Skip --unnecessary?
+-- Add action command that takes place at a certain iteration
 
 -- add another constructor to simulations that take the path to a file
 data Simulation
