@@ -13,14 +13,15 @@ type Sight = Int
 type Game = (V.Vector Agent, Point) -- agents and dimensions
 type Type = String
 
-type Transitions = [(Status, Game -> Agent -> Maybe Status)]
+type Transitions = [(Status, Game -> Agent -> Maybe Result)]
 
 data Agent           = Agent {
   agentType :: Type,
   agentPoint :: Point,
   agentStatus :: Status,
   agentTransitions :: Transitions,
-  agentSight :: Sight
+  agentSight :: Sight,
+  agentAttributes :: [(String, Int)]
 }
 
 instance Show Agent where
@@ -30,14 +31,17 @@ instance Show Agent where
 
 data Neighbor
   = Neighbor Int
+  deriving Show
 
 data Neighbors
   = Neighbors Int Int
   | AllNeighbors
+  deriving Show
 
 data Counts
   = TypeCount AgentName Neighbors
   | StateCount Status Neighbors
+  deriving Show
 
 data BoolExp
   = And BoolExp BoolExp
@@ -46,28 +50,41 @@ data BoolExp
   | EqState Neighbor Status
   | EqAgent Neighbor AgentName
   | EqCount Counts Int
+  | EqAtt String Int
+  | LtAtt String Int
+  | GtAtt String Int
   | ExpTrue
   | ExpFalse
+  deriving Show
+
+type Result = Either Status (String, Int)
 
 data TransitionComm
-  = Transition Status BoolExp Status
+  = Transition Status BoolExp Result
   | Seq TransitionComm TransitionComm
+  deriving Show
 
 data Participants
   = Multi Participants Participants
   | Uni AgentName Int
 
+data Attributes
+  = NoAtt
+  | Attribute String Int
+  | SeqAtt Attributes Attributes
+  deriving Show
+
 -- Commands data type
 data Comm
-  = DefAgent AgentName Sight TransitionComm
+  = DefAgent AgentName Sight Attributes TransitionComm
   | SetAgent AgentName Int -- Agent and amount
---  | RemoveAgent AgentName
+  | RemoveAgent AgentName
   | Iterations Int -- no of iterations
   | Setup Int Int String -- dimensions
 --  | SetupPath Path
   | SeqComm Comm Comm
---  | Skip --unnecessary?
--- Add action command that takes place at a certain iteration
+  | Skip
+  deriving Show
 
 -- add another constructor to simulations that take the path to a file
 data Simulation

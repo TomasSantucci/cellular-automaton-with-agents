@@ -21,6 +21,14 @@ findAgent name (Env _ _ ags) = find (\ag -> (agentType ag) == name) ags
 addSetAgent :: Agent -> Int -> Env -> Env
 addSetAgent agent n (Env sim (setAgs :!: iters) ags) = Env sim (((agent,n):setAgs) :!: iters) ags
 
+removeItem :: (a -> Bool) -> [a] -> [a]
+removeItem _ [] = []
+removeItem cmp (x:xs) = if cmp x then xs else x : (removeItem cmp xs)
+
+removeSetAgent :: String -> Env -> Env
+removeSetAgent name (Env sim (setAgs :!: iters) ags)
+  = Env sim ((removeItem (\(ag,n) -> (agentType ag) == name) setAgs) :!: iters) ags
+
 envSetIterations :: Int -> Env -> Env
 envSetIterations n (Env sim (setAgs :!: _) ags) = Env sim (setAgs :!: n) ags
 

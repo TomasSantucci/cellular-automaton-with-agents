@@ -11,13 +11,18 @@ slice :: Int -> Int -> [a] -> [a]
 slice from to xs = take (to - from + 1) (drop from xs)
 
 -- Takes a data for a transition and returns a transition function
-parseTransition :: BoolExp -> Status -> (Game -> Agent -> Maybe Status)
-parseTransition boolexp state = \game -> \agent ->
-  if (transformBoolExp boolexp) game agent then Just state else Nothing
+parseTransition :: BoolExp -> Result -> (Game -> Agent -> Maybe Result)
+parseTransition boolexp res = \game -> \agent ->
+  if (transformBoolExp boolexp) game agent then Just res else Nothing
+
+attributesList :: Attributes -> [(String, Int)]
+attributesList (Attribute s v) = [(s,v)]
+attributesList NoAtt = []
+attributesList (SeqAtt att1 att2) = (attributesList att1) ++ (attributesList att2)
 
 -- Takes a TransitionComm datatype and returns a list of the transitions
 transitionsList :: TransitionComm -> Transitions
-transitionsList (Transition iniSt boolexp endSt) = [(iniSt, parseTransition boolexp endSt)]
+transitionsList (Transition iniSt boolexp res) = [(iniSt, parseTransition boolexp res)]
 transitionsList (Seq t1 t2) = (transitionsList t1) ++ (transitionsList t2)
 
 -- Transforms a 2-d point into an index of a 1-d vector
@@ -68,6 +73,11 @@ findCount (StateCount agname AllNeighbors) agent game = foldr f 0 $ getNeighbors
 findCount (StateCount agname (Neighbors n m)) agent game = foldr f 0 $ getNeighbors agent game $ slice (n-1) (m-1) $ directions (agentSight agent)
   where f ag i = if (agentStatus ag) == agname then i+1 else i
 
+compareAtt :: (Int -> Bool) -> String -> [(String, Int)] -> Bool
+compareAtt f att atts = case lookup att atts of
+                          Nothing -> False
+                          Just v -> f v
+
 -- Transforms a bool expression into a function that receives a game
 -- and an agent and returns True if the expression is satisfied
 transformBoolExp :: BoolExp -> (Game -> Agent -> Bool)
@@ -77,6 +87,9 @@ transformBoolExp (Not b) = \game -> \agent -> not $ (transformBoolExp b) game ag
 transformBoolExp (EqState neighbor stname) = \game -> \agent -> agentStatus (findNeighbor game neighbor agent) == stname
 transformBoolExp (EqAgent neighbor agname) = \game -> \agent -> agentType (findNeighbor game neighbor agent) == agname
 transformBoolExp (EqCount counts n) = \game -> \agent -> (findCount counts agent game) == n
+transformBoolExp (EqAtt att v) = \game -> \agent -> compareAtt (\v' -> v == v') att (agentAttributes agent)
+transformBoolExp (LtAtt att v) = \game -> \agent -> compareAtt (\v' -> v' < v) att (agentAttributes agent)
+transformBoolExp (GtAtt att v) = \game -> \agent -> compareAtt (\v' -> v' > v) att (agentAttributes agent)
 transformBoolExp ExpFalse= \_ -> \_ -> False 
 transformBoolExp ExpTrue = \_ -> \_ -> True
 
@@ -89,12 +102,15 @@ checkEmptyList xs = if null xs then throw "No agents defined"
                                else return ()
 
 eval :: (MonadState m, MonadError m) => Comm -> m ()
-eval (DefAgent name sight states) = do let t = transitionsList states
-                                       _ <- if null t then throw "No transitions defined for an agent"
-                                                      else addAgent (Agent name (0,0) (Prelude.fst (head t)) t sight)
-                                       return ()
+eval (DefAgent name sight atts states) = 
+  do let t = transitionsList states
+         attList = attributesList atts
+     _ <- if null t then throw "No transitions defined for an agent"
+                    else addAgent (Agent name (0,0) (Prelude.fst (head t)) t sight attList)
+     return ()
+
 eval (SetAgent agname n) = setAgent agname n
---eval (RemoveAgent agname) = removeAgent agname
+eval (RemoveAgent agname) = removeAgent agname
 eval (Iterations i) = setIterations i
 eval (Setup n m file) = do i <- getIterations
                            checkPositiveIterations i
@@ -102,6 +118,15 @@ eval (Setup n m file) = do i <- getIterations
                            checkEmptyList agents
                            addSimulation (Simulation agents (n,m) i file)
                            return ()
---eval (SeqComm Skip c) = eval c
+eval (SeqComm Skip c) = eval c
 eval (SeqComm c1 c2) = do eval c1
                           eval c2
+
+--eval (SetupPath path file)
+--  = do let (cell,dimensions) = parsePath path
+--       i <- getIterations
+--       addSimulation (SimulationPath cells dimensions i file)
+
+
+-- parsePath :: Path -> Either Error ([(AgName, Status)], Dimensions)
+--parsePath :: String -> Either Error ([(String,Status)], Point)

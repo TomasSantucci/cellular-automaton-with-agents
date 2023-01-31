@@ -5,6 +5,7 @@ import Monads
 import GameOfLifeAgents (get)
 import Environment
 import Eval (eval)
+import Parse (sim_parse)
 import TestCommands
 import Data.Vector as V (fromList, imap, Vector)
 import System.Random (newStdGen)
@@ -12,14 +13,19 @@ import System.Random.Shuffle (shuffle')
 
 -- creating cells grid
 
+main = do comms <- readFile "./example.sim"
+          print (sim_parse comms)
+
+{-
 main :: IO ()
 main = case stateErrorGetEnv (runStateError (eval command) initEnv) of
-            Left _ -> return ()
+            Left error -> print error
             Right env -> sequence_ $ map simulate $ envGetSimulations env
+-}
 
 setPosition :: Agent -> Point -> Agent
-setPosition (Agent name _ status transitions sight) point
-  = Agent name point status transitions sight
+setPosition (Agent name _ status transitions sight atts) point
+  = Agent name point status transitions sight atts
 
 -- suponemos que siempre cae dentro de los limites, que en realidad siempre pasa
 idxToPoint :: Int -> Point -> Point
@@ -47,7 +53,7 @@ multiplyAgents ((ag,amount):rest) = (buildList ag amount) ++ (multiplyAgents res
 
 changeSight :: Agent -> Int -> Agent
 changeSight agent sight = Agent (agentType agent) (agentPoint agent)
-                                (agentStatus agent) (agentTransitions agent) sight
+                                (agentStatus agent) (agentTransitions agent) sight (agentAttributes agent)
 
 correctSight :: (Agent, Int) -> Int -> (Agent, Int)
 correctSight (ag,amount) maxSight 
