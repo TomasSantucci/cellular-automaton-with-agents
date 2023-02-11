@@ -3,7 +3,7 @@ module Parse where
 import AST
 import Data.Maybe
 import Data.Char
-
+-- falta implementar remove set agent
 }
 
 %monad { P } { thenP } { returnP }
@@ -24,6 +24,8 @@ import Data.Char
     'sight'           { TSight }
     'attributes'      { TAttributes }
     'rules'           { TRules }
+    'states'          { TStates }
+    'makeColor'       { TMakeColor }
     'setAgent'        { TSetAgent }
     'start'           { TStart }
     'setIterations'   { TSetIterations}
@@ -56,10 +58,10 @@ import Data.Char
 
 
 Comms         : DefComm Comms                            { SeqComm $1 $2 }
-              | DefComm                                  { Skip }
+              | DefComm                                  { $1 }
 
 DefComm       : 'define' '(' VAR ',' 'sight' '=' NUM ')'
-                '{' DefAttributes DefRules '}'           { DefAgent $3 $7 $10 $11 }
+                '{' DefAttributes DefStates DefRules '}' { DefAgent $3 $7 $10 $11 $12 }
               | 'setAgent' VAR NUM                       { SetAgent $2 $3 }
               | 'setIterations' NUM                      { Iterations $2 }
               | 'start' NUM NUM FILE                     { Setup $2 $3 $4 }
@@ -71,6 +73,16 @@ Attributes    : Attribute Attributes                     { SeqAtt $1 $2 }
               | Attribute                                { $1 }
 
 Attribute     : VAR '=' NUM                              { Attribute $1 $3 }
+
+DefStates     : 'states' ':' States                      { $3 }
+
+States        : State ',' States                         { SeqSt $1 $3 }
+              | State                                    { $1 }
+
+State         : VAR DefColor                             { State $1 $2 }
+
+DefColor      : VAR                                      { ColorName $1 }
+              | 'makeColor' NUM NUM NUM NUM              { ColorMake $2 $3 $4 $5 }
 
 DefRules      : 'rules' ':' Rules                        { $3 }
 
@@ -145,6 +157,8 @@ data Token = TVar String
              | TStart
              | TSetIterations
              | TNewState
+             | TStates
+             | TMakeColor
              | TChangeAttribute
              | TTrue
              | TFalse
@@ -194,6 +208,8 @@ lexer cont s = case s of
                      "Línea "++(show line)++": No se puede reconocer "++(show $ take 10 unknown)++ "..."
                     where lexVar cs = case span isAlphaNum cs of
                               ("define",rest)  -> cont TDefine rest
+                              ("states",rest)  -> cont TStates rest
+                              ("makeColor",rest)  -> cont TMakeColor rest
                               ("sight",rest)  -> cont TSight rest
                               ("attributes",rest)  -> cont TAttributes rest
                               ("rules",rest)  -> cont TRules rest

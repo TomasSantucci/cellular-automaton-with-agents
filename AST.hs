@@ -2,23 +2,25 @@ module AST where
 
 import qualified Data.Vector as V
 import Data.Strict.Tuple as T
+import Graphics.Gloss
 
 -- Useful datatypes
 
 type AgentName = String
 type Status = String
 type Path = String
-type Point = (Int, Int)
+type MyPoint = (Int, Int)
 type Sight = Int
-type Game = (V.Vector Agent, Point) -- agents and dimensions
+type Game = (V.Vector Agent, MyPoint) -- agents and dimensions
 type Type = String
 
 type Transitions = [(Status, Game -> Agent -> Maybe Result)]
 
 data Agent           = Agent {
   agentType :: Type,
-  agentPoint :: Point,
+  agentPoint :: MyPoint,
   agentStatus :: Status,
+  agentColors :: [(Status,Color)],
   agentTransitions :: Transitions,
   agentSight :: Sight,
   agentAttributes :: [(String, Int)]
@@ -74,9 +76,19 @@ data Attributes
   | SeqAtt Attributes Attributes
   deriving Show
 
+data MyColor
+  = ColorName String
+  | ColorMake Int Int Int Int
+  deriving Show
+
+data States
+  = State Status MyColor
+  | SeqSt States States
+  deriving Show
+
 -- Commands data type
 data Comm
-  = DefAgent AgentName Sight Attributes TransitionComm
+  = DefAgent AgentName Sight Attributes States TransitionComm
   | SetAgent AgentName Int -- Agent and amount
   | RemoveAgent AgentName
   | Iterations Int -- no of iterations
@@ -88,7 +100,7 @@ data Comm
 
 -- add another constructor to simulations that take the path to a file
 data Simulation
-  = Simulation [(Agent,Int)] Point Int String deriving Show -- [(agent,amount)] dimensions iterations file to save
+  = Simulation [(Agent,Int)] MyPoint Int String deriving Show -- [(agent,amount)] dimensions iterations file to save
 
 
 data Env = Env [Simulation] (Pair [(Agent, Int)] Int) [Agent] deriving Show
