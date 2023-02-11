@@ -90,17 +90,18 @@ data States
 data Comm
   = DefAgent AgentName Sight Attributes States TransitionComm
   | SetAgent AgentName Int -- Agent and amount
-  | RemoveAgent AgentName
+  | UnsetAgent AgentName
   | Iterations Int -- no of iterations
-  | Setup Int Int String -- dimensions
---  | SetupPath Path
+  | Setup Int Int -- dimensions
+  | SetupPath String
   | SeqComm Comm Comm
-  | Skip
   deriving Show
 
 -- add another constructor to simulations that take the path to a file
 data Simulation
-  = Simulation [(Agent,Int)] MyPoint Int String deriving Show -- [(agent,amount)] dimensions iterations file to save
+  = Simulation [(Agent,Int)] MyPoint Int -- [(agent,amount)] dimensions iterations file to save
+  | SimulationPath String Int [(Agent, Int)]
+  deriving Show
 
 
 data Env = Env [Simulation] (Pair [(Agent, Int)] Int) [Agent] deriving Show

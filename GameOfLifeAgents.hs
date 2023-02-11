@@ -17,7 +17,7 @@ cell2pic agent = rectMoved
                 Just c -> c
         rectangle = rectangleSolid (fromIntegral dimension) (fromIntegral dimension)
         rectColored = color col rectangle
-        rectMoved = translate (fromIntegral (x*dimension)) (fromIntegral (y*dimension)) rectColored
+        rectMoved = translate (fromIntegral (x*dimension)) (fromIntegral (-y*dimension)) rectColored
 
 cells2pic (cells,_) = pictures $ V.toList $ V.map cell2pic cells
 
@@ -58,8 +58,8 @@ nextState :: Game -> Game
 nextState game = (V.map (`makeCell` game) (fst game),snd game)
 
 makeCell :: Agent -> Game -> Agent
-makeCell (Agent type point status colors rules sight atts) game =
-  Agent type point (nextAgentStatus game (filterTransitions agent) agent) colors rules sight atts 
+makeCell ag@(Agent name point status colors rules sight atts) game =
+  Agent name point (nextAgentStatus game (filterTransitions ag) ag) colors rules sight atts 
 
 filterTransitions :: Agent -> [Game -> Agent -> Maybe Result]
 filterTransitions agent = [y | (x,y) <- (agentTransitions agent), x == (agentStatus agent)]

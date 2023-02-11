@@ -158,23 +158,21 @@ eval (DefAgent name sight atts states rules) =
      return ()
 
 eval (SetAgent agname n) = setAgent agname n
-eval (RemoveAgent agname) = removeAgent agname
+eval (UnsetAgent agname) = unsetAgent agname
 eval (Iterations i) = setIterations i
-eval (Setup n m file) = do i <- getIterations
-                           checkPositiveIterations i
-                           agents <- getAgents
-                           checkEmptyList agents "No agents defined"
-                           addSimulation (Simulation agents (n,m) i file)
-                           return ()
-eval (SeqComm Skip c) = eval c
+eval (Setup n m) = do i <- getIterations
+                      checkPositiveIterations i
+                      agents <- getAgents
+                      checkEmptyList agents "No agents defined"
+                      addSimulation (Simulation agents (n,m) i)
+                      return ()
 eval (SeqComm c1 c2) = do eval c1
                           eval c2
-eval Skip = return ()
 
---eval (SetupPath path file)
---  = do let (cell,dimensions) = parsePath path
---       i <- getIterations
---       addSimulation (SimulationPath cells dimensions i file)
+eval (SetupPath path) = do agentsDefined <- getAgents
+                           i <- getIterations
+                           addSimulation (SimulationPath path i agentsDefined)
+                           return ()
 
 
 -- parsePath :: Path -> Either Error ([(AgName, Status)], Dimensions)

@@ -8,7 +8,8 @@ import Eval (eval)
 import Parse
 import ParseGame (parseFile)
 import TestCommands
-import Data.Vector as V (fromList, imap, Vector)
+import Data.Vector as V (fromList, imap, Vector, map)
+import Data.List
 import System.Random (newStdGen, mkStdGen, StdGen)
 import System.Random.Shuffle (shuffle')
 import Graphics.Gloss
@@ -21,7 +22,7 @@ main = do r <- readFile "./example.sim"
           print command3
           case stateErrorGetEnv (runStateError (eval command3) initEnv) of
             Left error -> print error
-            Right env -> do let sims = map Main.simulate $ envGetSimulations env
+            Right env -> do sims <- sims2grids $ envGetSimulations env
                             get sims
 
 setPosition :: Agent -> MyPoint -> Agent
@@ -36,13 +37,54 @@ assignPositions :: MyPoint -> V.Vector Agent -> V.Vector Agent
 assignPositions dimensions agents
   = V.imap (\idx -> \agent -> setPosition agent (idxToPoint idx dimensions)) agents
 
-simulate :: Simulation -> (StdGen -> (Game,Int))
-simulate (Simulation ags (x,y) it file)
+sims2grids :: [Simulation] -> IO [StdGen -> (Game,Int)]
+sims2grids [] = return []
+sims2grids ((Simulation ags (x,y) it):rest) =
+  do r2 <- sims2grids rest
+     let r1 = createGrid ags (x,y) it
+     return (r1:r2)
+
+sims2grids ((SimulationPath path it agentsDefined):rest) =
+  do r2 <- sims2grids rest
+     r1 <- createGridPath path it agentsDefined
+     return (r1:r2)
+
+copyAgent :: Agent -> Agent -> Agent
+copyAgent ref (Agent name point status colors rules sight atts) =
+  Agent name point status (agentColors ref) (agentTransitions ref) (agentSight ref) (agentAttributes ref)
+
+fillAgent :: [(Agent, Int)] -> Agent -> Agent
+fillAgent agentsDefined agent = case find (\(ag,n) -> (agentType ag) == (agentType agent)) agentsDefined of
+                                  Nothing -> agent
+                                  Just (ref,_) -> copyAgent ref agent
+
+createGridPath :: String -> Int -> [(Agent, Int)] -> IO (StdGen -> (Game,Int))
+createGridPath path it agentsDefined =
+  do contents <- readFile path
+     let Right (rawCells,(x,y)) = parseFile path contents
+         vectorCells = V.fromList rawCells
+         maxSight = min x y
+         agentsDefinedWellSighted = Data.List.map (\ag -> correctSight ag maxSight) agentsDefined
+         posCells = assignPositions (x,y) vectorCells
+         filledAgents = V.map (fillAgent agentsDefinedWellSighted) posCells
+     return (\rng -> ((filledAgents, (x,y)), it))
+
+createGrid :: [(Agent,Int)] -> MyPoint -> Int -> (StdGen -> (Game,Int))
+createGrid ags (x,y) it 
   = \rng -> let shuffledAgents = V.fromList $ shuffle' sortedAgents (x*y) rng
                 cells = assignPositions (x,y) shuffledAgents
             in ((cells, (x,y)), it)
   where maxSight = min x y
-        sortedAgents = (multiplyAgents (map (\ag -> correctSight ag maxSight) ags))
+        sortedAgents = (multiplyAgents (Data.List.map (\ag -> correctSight ag maxSight) ags))
+
+
+simulate :: Simulation -> (StdGen -> (Game,Int))
+simulate (Simulation ags (x,y) it)
+  = \rng -> let shuffledAgents = V.fromList $ shuffle' sortedAgents (x*y) rng
+                cells = assignPositions (x,y) shuffledAgents
+            in ((cells, (x,y)), it)
+  where maxSight = min x y
+        sortedAgents = (multiplyAgents (Data.List.map (\ag -> correctSight ag maxSight) ags))
 
 multiplyAgents :: [(Agent, Int)] -> [Agent]
 multiplyAgents [] = []

@@ -3,7 +3,6 @@ module Parse where
 import AST
 import Data.Maybe
 import Data.Char
--- falta implementar remove set agent
 }
 
 %monad { P } { thenP } { returnP }
@@ -28,7 +27,9 @@ import Data.Char
     'makeColor'       { TMakeColor }
     'setAgent'        { TSetAgent }
     'start'           { TStart }
+    'startPath'       { TStartPath }
     'setIterations'   { TSetIterations}
+    'unsetAgent'      { TUnsetAgent }
     'newState'        { TNewState }
     'changeAttribute' { TChangeAttribute }
     'allNeighs'       { TAllNeighs }
@@ -56,7 +57,6 @@ import Data.Char
 
 %%
 
-
 Comms         : DefComm Comms                            { SeqComm $1 $2 }
               | DefComm                                  { $1 }
 
@@ -64,7 +64,9 @@ DefComm       : 'define' '(' VAR ',' 'sight' '=' NUM ')'
                 '{' DefAttributes DefStates DefRules '}' { DefAgent $3 $7 $10 $11 $12 }
               | 'setAgent' VAR NUM                       { SetAgent $2 $3 }
               | 'setIterations' NUM                      { Iterations $2 }
-              | 'start' NUM NUM FILE                     { Setup $2 $3 $4 }
+              | 'start' NUM NUM                          { Setup $2 $3 }
+              | 'startPath' FILE                         { SetupPath $2 }
+              | 'unsetAgent' VAR                         { UnsetAgent $2 }
 
 DefAttributes : 'attributes' ':' Attributes              { $3 }
               |                                          { NoAtt }
@@ -154,7 +156,9 @@ data Token = TVar String
              | TAttributes
              | TRules
              | TSet
+             | TUnsetAgent
              | TStart
+             | TStartPath
              | TSetIterations
              | TNewState
              | TStates
@@ -214,7 +218,9 @@ lexer cont s = case s of
                               ("attributes",rest)  -> cont TAttributes rest
                               ("rules",rest)  -> cont TRules rest
                               ("setAgent",rest)  -> cont TSetAgent rest
+                              ("unsetAgent",rest)  -> cont TUnsetAgent rest
                               ("start",rest)  -> cont TStart rest
+                              ("startPath",rest)  -> cont TStartPath rest
                               ("setIterations",rest)  -> cont TSetIterations rest
                               ("newState",rest)  -> cont TNewState rest
                               ("changeAttribute",rest)  -> cont TChangeAttribute rest
