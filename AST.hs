@@ -31,18 +31,22 @@ instance Show Agent where
 
 -- Grammar datatypes
 
-data Neighbor
-  = Neighbor Int
-  deriving Show
+type Neighbor = Int
 
 data Neighbors
   = Neighbors Int Int
   | AllNeighbors
   deriving Show
 
-data Counts
-  = TypeCount AgentName Neighbors
+data IntExp
+  = Const Int
+  | TypeCount AgentName Neighbors
   | StateCount Status Neighbors
+  | Att String
+  | Plus IntExp IntExp
+  | Minus IntExp IntExp
+  | Div IntExp Int
+  | Times IntExp IntExp
   deriving Show
 
 data BoolExp
@@ -51,18 +55,18 @@ data BoolExp
   | Not BoolExp
   | EqState Neighbor Status
   | EqAgent Neighbor AgentName
-  | EqCount Counts Int
-  | EqAtt String Int
-  | LtAtt String Int
-  | GtAtt String Int
+  | Eq IntExp IntExp
+  | Lt IntExp IntExp
+  | Gt IntExp IntExp
   | ExpTrue
   | ExpFalse
   deriving Show
 
 type Result = Either Status (String, Int)
+type UnparsedResult = Either Status (String, IntExp)
 
 data TransitionComm
-  = Transition Status BoolExp Result
+  = Transition Status BoolExp UnparsedResult
   | Seq TransitionComm TransitionComm
   deriving Show
 
@@ -103,5 +107,7 @@ data Simulation
   | SimulationPath String Int [(Agent, Int)]
   deriving Show
 
+cellSize :: Int
+cellSize = 30
 
 data Env = Env [Simulation] (Pair [(Agent, Int)] Int) [Agent] deriving Show

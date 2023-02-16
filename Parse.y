@@ -46,14 +46,21 @@ import Data.Char
     'false'           { TFalse }
     'and'             { TAnd }
     'or'              { TOr }
+    '+'               { TPlus }
+    '-'               { TMinus }
+    '/'               { TDiv }
+    '*'               { TTimes }
+    '=='              { TIsEqual }
+    'attribute'       { TAttribute }
     VAR               { TVar $$ }
     NUM               { TNum $$ }
     FILE              { TFile $$ }
     ','               { TComma }
 
-
 %right 'and' 'or'
 %left 'not'
+%left '+' '-'
+%left '*' '/'
 
 %%
 
@@ -94,21 +101,29 @@ Rules         : Rule Rules                               { Seq $1 $2 }
 Rule          : VAR ':' BoolExp '->' Result              { Transition $1 $3 $5 }
 
 Result        : 'newState' VAR                           { Left $2 }
-              | 'changeAttribute' VAR NUM                { Right ($2,$3) }
+              | 'changeAttribute' VAR IntExp             { Right ($2,$3) }
 
 BoolExp       : 'true'                                   { ExpTrue }
               | 'false'                                  { ExpFalse }
               | BoolExp 'and' BoolExp                    { And $1 $3 }
               | BoolExp 'or' BoolExp                     { Or $1 $3 }
-              | 'status' 'neigh' NUM '=' VAR             { EqState (Neighbor $3) $5 }
-              | 'type' 'neigh' NUM '=' VAR               { EqAgent (Neighbor $3) $5 }
-              | 'countStatus' Neighbors VAR '=' NUM      { EqCount (StateCount $3 $2) $5 }
-              | 'countTypes' Neighbors VAR '=' NUM       { EqCount (TypeCount $3 $2) $5 }
-              | VAR '=' NUM                              { EqAtt $1 $3 }
-              | VAR '<' NUM                              { LtAtt $1 $3 }
-              | VAR '>' NUM                              { GtAtt $1 $3 }
               | 'not' BoolExp                            { Not $2 }
+              | 'status' 'neigh' NUM '=' VAR             { EqState $3 $5 }
+              | 'type' 'neigh' NUM '=' VAR               { EqAgent $3 $5 }
+              | IntExp '==' IntExp                       { Eq $1 $3 }
+              | IntExp '<' IntExp                        { Lt $1 $3 }
+              | IntExp '>' IntExp                        { Gt $1 $3 }
               | '(' BoolExp ')'                          { $2 }
+
+IntExp        : NUM                                      { Const $1 }
+              | 'countTypes' VAR Neighbors               { TypeCount $2 $3 }
+              | 'countStatus' VAR Neighbors              { StateCount $2 $3 }
+              | 'attribute' VAR                          { Att $2 }
+              | IntExp '+' IntExp                        { Plus $1 $3 }
+              | IntExp '-' IntExp                        { Minus $1 $3 }
+              | IntExp '/' NUM                           { Div $1 $3 }
+              | IntExp '*' IntExp                        { Times $1 $3 }
+              | '(' IntExp ')'                           { $2 }
 
 Neighbors     : 'allNeighs'                              { AllNeighbors }
               | 'neighs' NUM NUM                         { Neighbors $2 $3 }
@@ -183,6 +198,12 @@ data Token = TVar String
              | TNot
              | TEOF
              | TFile String
+             | TPlus
+             | TMinus
+             | TDiv
+             | TTimes
+             | TIsEqual
+             | TAttribute
              deriving Show
 
 ----------------------------------
@@ -199,6 +220,7 @@ lexer cont s = case s of
                     ('-':('>':cs)) -> cont TArrow cs
                     ('(':cs) -> cont TOpen cs
                     ('-':('>':cs)) -> cont TArrow cs
+                    ('=':('=':cs)) -> cont TIsEqual cs
                     (')':cs) -> cont TClose cs
                     ('{':cs) -> cont TOpenBracket cs
                     ('}':cs) -> cont TCloseBracket cs
@@ -207,6 +229,10 @@ lexer cont s = case s of
                     ('=':cs) -> cont TEquals cs
                     ('<':cs) -> cont TLt cs
                     ('>':cs) -> cont TGt cs
+                    ('+':cs) -> cont TPlus cs
+                    ('-':cs) -> cont TMinus cs
+                    ('*':cs) -> cont TTimes cs
+                    ('/':cs) -> cont TDiv cs
                     ('"':cs) -> lexFile cs
                     unknown -> \line -> Failed $
                      "Línea "++(show line)++": No se puede reconocer "++(show $ take 10 unknown)++ "..."
@@ -216,6 +242,7 @@ lexer cont s = case s of
                               ("makeColor",rest)  -> cont TMakeColor rest
                               ("sight",rest)  -> cont TSight rest
                               ("attributes",rest)  -> cont TAttributes rest
+                              ("attribute",rest)  -> cont TAttribute rest
                               ("rules",rest)  -> cont TRules rest
                               ("setAgent",rest)  -> cont TSetAgent rest
                               ("unsetAgent",rest)  -> cont TUnsetAgent rest
