@@ -7,7 +7,6 @@ import Environment
 import Eval (eval)
 import Parse
 import ParseGame (parseFile)
-import TestCommands
 import Data.Vector as V (fromList, imap, Vector, map)
 import Data.List
 import System.Random (newStdGen, mkStdGen, StdGen)
@@ -18,12 +17,15 @@ import Graphics.Gloss
 
 main :: IO ()
 main = do r <- readFile "./example.sim"
-          let (Ok command3) = (sim_parse r)
-          print command3
-          case stateErrorGetEnv (runStateError (eval command3) initEnv) of
-            Left error -> print error
-            Right env -> do sims <- sims2grids $ envGetSimulations env
-                            get sims
+          case sim_parse r of
+            Ok command -> exec command
+            Failed e -> putStr e
+
+exec :: Comm -> IO ()
+exec c = case stateErrorGetEnv (runStateError (eval c) initEnv) of
+           Left e -> print e
+           Right env -> do sims <- sims2grids $ envGetSimulations env
+                           get sims
 
 setPosition :: Agent -> MyPoint -> Agent
 setPosition (Agent name _ status states transitions sight atts) point
@@ -50,36 +52,29 @@ sims2grids ((SimulationPath path it agentsDefined):rest) =
      return (r1:r2)
 
 copyAgent :: Agent -> Agent -> Agent
-copyAgent ref (Agent name point status colors rules sight atts) =
+copyAgent ref (Agent name point status _ _ _ _) =
   Agent name point status (agentColors ref) (agentTransitions ref) (agentSight ref) (agentAttributes ref)
 
 fillAgent :: [(Agent, Int)] -> Agent -> Agent
-fillAgent agentsDefined agent = case find (\(ag,n) -> (agentType ag) == (agentType agent)) agentsDefined of
+fillAgent agentsDefined agent = case find (\(ag,_) -> (agentType ag) == (agentType agent)) agentsDefined of
                                   Nothing -> agent
                                   Just (ref,_) -> copyAgent ref agent
 
 createGridPath :: String -> Int -> [(Agent, Int)] -> IO (StdGen -> (Game,Int))
 createGridPath path it agentsDefined =
   do contents <- readFile path
-     let Right (rawCells,(x,y)) = parseFile path contents
-         vectorCells = V.fromList rawCells
+     (rawCells, (x,y)) <- case parseFile path contents of
+                            Left _ -> ioError $ userError $ "Error parsing " ++ path
+                            Right r -> return r
+     let vectorCells = V.fromList rawCells
          maxSight = min x y
          agentsDefinedWellSighted = Data.List.map (\ag -> correctSight ag maxSight) agentsDefined
          posCells = assignPositions (x,y) vectorCells
          filledAgents = V.map (fillAgent agentsDefinedWellSighted) posCells
-     return (\rng -> ((filledAgents, (x,y)), it))
+     return (\_ -> ((filledAgents, (x,y)), it))
 
 createGrid :: [(Agent,Int)] -> MyPoint -> Int -> (StdGen -> (Game,Int))
 createGrid ags (x,y) it 
-  = \rng -> let shuffledAgents = V.fromList $ shuffle' sortedAgents (x*y) rng
-                cells = assignPositions (x,y) shuffledAgents
-            in ((cells, (x,y)), it)
-  where maxSight = min x y
-        sortedAgents = (multiplyAgents (Data.List.map (\ag -> correctSight ag maxSight) ags))
-
-
-simulate :: Simulation -> (StdGen -> (Game,Int))
-simulate (Simulation ags (x,y) it)
   = \rng -> let shuffledAgents = V.fromList $ shuffle' sortedAgents (x*y) rng
                 cells = assignPositions (x,y) shuffledAgents
             in ((cells, (x,y)), it)
