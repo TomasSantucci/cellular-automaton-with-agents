@@ -186,7 +186,9 @@ eval (Setup n m) = do i <- getIterations
                       return ()
 
 eval (SetupPath path) = do agentsDefined <- getAgents
+                           checkPredicate agentsDefined null "No agents defined"
                            i <- getIterations
+                           checkPredicate i (0 ==) "Number of iterations unset"
                            addSimulation (SimulationPath path i agentsDefined)
                            return ()
 

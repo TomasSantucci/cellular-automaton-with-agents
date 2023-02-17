@@ -53,7 +53,7 @@ import Data.Char
     '=='              { TIsEqual }
     'attribute'       { TAttribute }
     ','               { TComma }
-    STRING            { TVar $$ }
+    STRING            { TString $$ }
     NUM               { TNum $$ }
     FILE              { TFile $$ }
     
