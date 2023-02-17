@@ -1,4 +1,4 @@
-module Eval where
+module Eval (eval) where
 
 import AST
 import Monads
@@ -12,29 +12,53 @@ slice :: Int -> Int -> [a] -> [a]
 slice from to xs = take (to - from + 1) (drop from xs)
 
 -- Takes a data for a transition and returns a transition function
-parseTransition :: MonadError m => BoolExp -> UnparsedResult -> m (Game -> Agent -> Maybe Result)
-parseTransition boolexp (Left newState) =
-  do be <- transformBoolExp boolexp
-     return (\game agent -> if be game agent then Just (Left newState) else Nothing)
-parseTransition boolexp (Right (attName, ie)) = 
-  do be <- transformBoolExp boolexp
-     intRes <- transformIntExp ie
-     return (\game agent -> if be game agent then Just (Right (attName, (intRes game agent))) else Nothing)
+parseRule :: MonadError m => BoolExp -> UnparsedResult -> m (Game -> Agent -> Maybe Result)
+parseRule boolexp (Left newState)
+  = do boolFun <- boolExpToFunction boolexp
+       return $ \game agent -> if boolFun game agent
+                               then Just (Left newState)
+                               else Nothing
+
+parseRule boolexp (Right (attName, intexp))
+  = do boolFun <- boolExpToFunction boolexp
+       intFun <- intExpToFunction intexp
+       return $ \game agent -> if boolFun game agent
+                               then Just (Right (attName, (intFun game agent)))
+                               else Nothing
+
+-- Takes a RulesComm datatype and returns a list of the transitions
+rulesList :: MonadError m => RulesComm -> m [Rule]
+rulesList (DefRule state boolexp res)
+  = do rule <- parseRule boolexp res
+       return [(state, rule)]
+
+rulesList (Seq c1 c2) = do rules1 <- rulesList c1
+                           rules2 <- rulesList c2
+                           return (rules1 ++ rules2)
+
+validateColor :: MyColor -> Either String Color
+validateColor (ColorName "black") = Right black
+validateColor (ColorName "white") = Right white
+validateColor (ColorName "red") = Right red
+validateColor (ColorName "green") = Right green
+validateColor (ColorName "blue") = Right blue
+validateColor (ColorName "yellow") = Right yellow
+validateColor (ColorName n) = Left $ "Unknown color " ++ n
+validateColor (ColorMake r g b a) = Right $ makeColorI (f r) (f g) (f b) (f a)
+  where f n = mod n 256
+
+statesList :: (MonadState m, MonadError m) => StatesComm -> m [(State,Color)]
+statesList (DefState st colName) = case validateColor colName of
+                                  Left e -> throw e
+                                  Right col -> return [(st,col)]
+statesList (SeqSt c1 c2) = do st1 <- statesList c1
+                              st2 <- statesList c2
+                              return (st1 ++ st2)
 
 attributesList :: Attributes -> [(String, Int)]
-attributesList (Attribute s v) = [(s,v)]
 attributesList NoAtt = []
+attributesList (Attribute s v) = [(s,v)]
 attributesList (SeqAtt att1 att2) = (attributesList att1) ++ (attributesList att2)
-
--- Takes a TransitionComm datatype and returns a list of the transitions
-transitionsList :: MonadError m => TransitionComm -> m Transitions
-transitionsList (Transition iniSt boolexp res) = 
-  do transition <- parseTransition boolexp res
-     return [(iniSt, transition)]
-
-transitionsList (Seq t1 t2) = do tr1 <- transitionsList t1
-                                 tr2 <- transitionsList t2
-                                 return (tr1 ++ tr2)
 
 -- Transforms a 2-d point into an index of a 1-d vector
 pointToIdx :: MyPoint -> MyPoint -> Int
@@ -87,110 +111,85 @@ getAttValue attName agent = case lookup attName (agentAttributes agent) of
                               Nothing -> 0
                               Just v -> v
 
-transformBinaryIntExp :: MonadError m => IntExp -> IntExp -> (Int -> Int -> a) -> m (Game -> Agent -> a)
-transformBinaryIntExp ie1 ie2 f
-  = do r1 <- transformIntExp ie1
-       r2 <- transformIntExp ie2
+parseBinaryIntExp :: MonadError m => IntExp -> IntExp -> (Int -> Int -> a) -> m (Game -> Agent -> a)
+parseBinaryIntExp ie1 ie2 f
+  = do r1 <- intExpToFunction ie1
+       r2 <- intExpToFunction ie2
        return (\game agent -> f (r1 game agent) (r2 game agent))
 
-transformIntExp :: MonadError m => IntExp -> m (Game -> Agent -> Int)
-transformIntExp (Const n) = return (\_ _ -> n)
-transformIntExp (TypeCount name neighs) =
+intExpToFunction :: MonadError m => IntExp -> m (Game -> Agent -> Int)
+intExpToFunction (Const n) = return (\_ _ -> n)
+intExpToFunction (TypeCount name neighs) =
   return (findCount agentType name neighs)
-transformIntExp (StateCount status neighs) =
-  return (findCount agentStatus status neighs)
-transformIntExp (Att attName) =
+intExpToFunction (StateCount status neighs) =
+  return (findCount agentState status neighs)
+intExpToFunction (Att attName) =
   return (\_ agent -> getAttValue attName agent)
-transformIntExp (Plus ie1 ie2) = transformBinaryIntExp ie1 ie2 (+)
-transformIntExp (Minus ie1 ie2) = transformBinaryIntExp ie1 ie2 (-)
-transformIntExp (Times ie1 ie2) = transformBinaryIntExp ie1 ie2 (*)
-transformIntExp (Div _ 0) = throw "Div by zero"
-transformIntExp (Div ie n) = do r <- transformIntExp ie
-                                return (\game agent -> div (r game agent) n)
+intExpToFunction (Plus ie1 ie2) = parseBinaryIntExp ie1 ie2 (+)
+intExpToFunction (Minus ie1 ie2) = parseBinaryIntExp ie1 ie2 (-)
+intExpToFunction (Times ie1 ie2) = parseBinaryIntExp ie1 ie2 (*)
+intExpToFunction (Div _ 0) = throw "Div by zero"
+intExpToFunction (Div ie n) = do r <- intExpToFunction ie
+                                 return (\game agent -> div (r game agent) n)
 
 -- Transforms a bool expression into a function that receives a game
 -- and an agent and returns True if the expression is satisfied
-transformBoolExp :: MonadError m => BoolExp -> m (Game -> Agent -> Bool)
-transformBoolExp (And b1 b2)
-  = do be1 <- transformBoolExp b1
-       be2 <- transformBoolExp b2
+boolExpToFunction :: MonadError m => BoolExp -> m (Game -> Agent -> Bool)
+boolExpToFunction ExpFalse = return (\_ _ -> False)
+boolExpToFunction ExpTrue = return (\_ _ -> True)
+boolExpToFunction (Eq ie1 ie2) = parseBinaryIntExp ie1 ie2 (==)
+boolExpToFunction (Lt ie1 ie2) = parseBinaryIntExp ie1 ie2 (<)
+boolExpToFunction (Gt ie1 ie2) = parseBinaryIntExp ie1 ie2 (>)
+
+boolExpToFunction (And b1 b2)
+  = do be1 <- boolExpToFunction b1
+       be2 <- boolExpToFunction b2
        return (\game agent -> (be1 game agent) && (be2 game agent))
 
-transformBoolExp (Or b1 b2)
-  = do be1 <- transformBoolExp b1
-       be2 <- transformBoolExp b2
+boolExpToFunction (Or b1 b2)
+  = do be1 <- boolExpToFunction b1
+       be2 <- boolExpToFunction b2
        return (\game agent -> (be1 game agent) || (be2 game agent))
 
-transformBoolExp (Not b)
-  = do be1 <- transformBoolExp b
+boolExpToFunction (Not b)
+  = do be1 <- boolExpToFunction b
        return (\game agent -> not (be1 game agent))
 
-transformBoolExp (EqState neighbor stname)
-  = return (\game agent -> (agentStatus (findNeighbor game neighbor agent)) == stname)
+boolExpToFunction (EqState neighbor stname)
+  = return (\game agent -> (agentState (findNeighbor game neighbor agent)) == stname)
 
-transformBoolExp (EqAgent neighbor agname)
+boolExpToFunction (EqAgent neighbor agname)
   = return (\game agent -> agentType (findNeighbor game neighbor agent) == agname)
-
-transformBoolExp (Eq ie1 ie2) = transformBinaryIntExp ie1 ie2 (==)
-transformBoolExp (Lt ie1 ie2) = transformBinaryIntExp ie1 ie2 (<)
-transformBoolExp (Gt ie1 ie2) = transformBinaryIntExp ie1 ie2 (>)
-transformBoolExp ExpFalse = return (\_ _ -> False)
-transformBoolExp ExpTrue = return (\_ _ -> True)
-
-checkPositiveIterations :: (MonadState m, MonadError m) => Int -> m ()
-checkPositiveIterations i = if i == 0 then throw "Number of iterations unset"
-                                      else return ()
-
-checkEmptyList :: (MonadState m, MonadError m) => [a] -> String -> m ()
-checkEmptyList xs s = if null xs then throw s
-                                 else return ()
 
 -- When everything works try this
 checkPredicate :: (MonadState m, MonadError m) => a -> (a -> Bool) -> String -> m ()
 checkPredicate a p s = if p a then throw s else return ()
 
-validateColor :: MyColor -> Either String Color
-validateColor (ColorName "black") = Right black
-validateColor (ColorName "white") = Right white
-validateColor (ColorName "red") = Right red
-validateColor (ColorName "green") = Right green
-validateColor (ColorName "blue") = Right blue
-validateColor (ColorName "yellow") = Right yellow
-validateColor (ColorName n) = Left $ "Unknown color " ++ n
-validateColor (ColorMake r g b a) = Right $ makeColorI (f r) (f g) (f b) (f a)
-  where f n = mod n 256
-
-statesList :: (MonadState m, MonadError m) => States -> m [(Status,Color)]
-statesList (State st colName) = case validateColor colName of
-                                  Left e -> throw e
-                                  Right col -> return [(st,col)]
-statesList (SeqSt c1 c2) = do st1 <- statesList c1
-                              st2 <- statesList c2
-                              return (st1 ++ st2)
-
 eval :: (MonadState m, MonadError m) => Comm -> m ()
-eval (DefAgent name sight atts states rules) = 
-  do stList <- statesList states
-     t <- transitionsList rules
-     let attList = attributesList atts
-     checkEmptyList stList "No states defined"
-     checkEmptyList t "No transitions defined for an agent"
-     addAgent (Agent name (0,0) (Prelude.fst (head stList)) stList t sight attList)
-     return ()
+eval (DefAgent name sight atts statesComm rulesComm)
+  = do states <- statesList statesComm
+       rules <- rulesList rulesComm
+       checkPredicate states null "No states defined"
+       checkPredicate rules null ("No transition rules defined for " ++ name)
+       let attList = attributesList atts
+       addAgent (Agent name (0,0) (Prelude.fst (head states)) states rules sight attList)
+       return ()
 
 eval (SetAgent agname n) = setAgent agname n
 eval (UnsetAgent agname) = unsetAgent agname
 eval (Iterations i) = setIterations i
 eval (Setup n m) = do i <- getIterations
-                      checkPositiveIterations i
+                      checkPredicate i (0 ==) "Number of iterations unset"
                       agents <- getAgents
-                      checkEmptyList agents "No agents defined"
+                      checkPredicate agents null "No agents defined"
                       addSimulation (Simulation agents (n,m) i)
                       return ()
-eval (SeqComm c1 c2) = do eval c1
-                          eval c2
 
 eval (SetupPath path) = do agentsDefined <- getAgents
                            i <- getIterations
                            addSimulation (SimulationPath path i agentsDefined)
                            return ()
+
+eval (SeqComm c1 c2) = do eval c1
+                          eval c2
+

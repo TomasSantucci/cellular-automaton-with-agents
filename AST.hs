@@ -7,27 +7,31 @@ import Graphics.Gloss
 -- Useful datatypes
 
 type AgentName = String
-type Status = String
+type State = String
 type Path = String
 type MyPoint = (Int, Int)
-type Sight = Int
-type Game = (V.Vector Agent, MyPoint) -- agents and dimensions
-type Type = String
+type Game = (V.Vector Agent, MyPoint)
+type Rule = (State, Game -> Agent -> Maybe Result)
+data Env = Env [Simulation] (Pair [(Agent, Int)] Int) [Agent] deriving Show
+type Model = ((Game, Int), Int)
 
-type Transitions = [(Status, Game -> Agent -> Maybe Result)]
+data Simulation
+  = Simulation [(Agent,Int)] MyPoint Int
+  | SimulationPath String Int [(Agent, Int)]
+  deriving Show
 
 data Agent           = Agent {
-  agentType :: Type,
+  agentType :: String,
   agentPoint :: MyPoint,
-  agentStatus :: Status,
-  agentColors :: [(Status,Color)],
-  agentTransitions :: Transitions,
-  agentSight :: Sight,
+  agentState :: State,
+  agentColors :: [(State,Color)],
+  agentRules :: [Rule],
+  agentSight :: Int,
   agentAttributes :: [(String, Int)]
 }
 
 instance Show Agent where
-  show ag = (agentType ag) ++ "-" ++ (agentStatus ag)
+  show ag = (agentType ag) ++ "-" ++ (agentState ag)
 
 -- Grammar datatypes
 
@@ -38,10 +42,13 @@ data Neighbors
   | AllNeighbors
   deriving Show
 
+type Result = Either State (String, Int)
+type UnparsedResult = Either State (String, IntExp)
+
 data IntExp
   = Const Int
   | TypeCount AgentName Neighbors
-  | StateCount Status Neighbors
+  | StateCount State Neighbors
   | Att String
   | Plus IntExp IntExp
   | Minus IntExp IntExp
@@ -53,7 +60,7 @@ data BoolExp
   = And BoolExp BoolExp
   | Or BoolExp BoolExp
   | Not BoolExp
-  | EqState Neighbor Status
+  | EqState Neighbor State
   | EqAgent Neighbor AgentName
   | Eq IntExp IntExp
   | Lt IntExp IntExp
@@ -62,17 +69,10 @@ data BoolExp
   | ExpFalse
   deriving Show
 
-type Result = Either Status (String, Int)
-type UnparsedResult = Either Status (String, IntExp)
-
-data TransitionComm
-  = Transition Status BoolExp UnparsedResult
-  | Seq TransitionComm TransitionComm
+data RulesComm
+  = DefRule State BoolExp UnparsedResult
+  | Seq RulesComm RulesComm
   deriving Show
-
-data Participants
-  = Multi Participants Participants
-  | Uni AgentName Int
 
 data Attributes
   = NoAtt
@@ -85,29 +85,19 @@ data MyColor
   | ColorMake Int Int Int Int
   deriving Show
 
-data States
-  = State Status MyColor
-  | SeqSt States States
+data StatesComm
+  = DefState State MyColor
+  | SeqSt StatesComm StatesComm
   deriving Show
 
 -- Commands data type
+
 data Comm
-  = DefAgent AgentName Sight Attributes States TransitionComm
-  | SetAgent AgentName Int -- Agent and amount
+  = DefAgent AgentName Int Attributes StatesComm RulesComm
+  | SetAgent AgentName Int
   | UnsetAgent AgentName
-  | Iterations Int -- no of iterations
-  | Setup Int Int -- dimensions
+  | Iterations Int
+  | Setup Int Int
   | SetupPath String
   | SeqComm Comm Comm
   deriving Show
-
--- add another constructor to simulations that take the path to a file
-data Simulation
-  = Simulation [(Agent,Int)] MyPoint Int -- [(agent,amount)] dimensions iterations file to save
-  | SimulationPath String Int [(Agent, Int)]
-  deriving Show
-
-cellSize :: Int
-cellSize = 30
-
-data Env = Env [Simulation] (Pair [(Agent, Int)] Int) [Agent] deriving Show

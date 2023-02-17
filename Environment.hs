@@ -25,9 +25,9 @@ removeItem :: (a -> Bool) -> [a] -> [a]
 removeItem _ [] = []
 removeItem cmp (x:xs) = if cmp x then xs else x : (removeItem cmp xs)
 
-removeSetAgent :: String -> Env -> Env
-removeSetAgent name (Env sim (setAgs :!: iters) ags)
-  = Env sim ((removeItem (\(ag,n) -> (agentType ag) == name) setAgs) :!: iters) ags
+envUnsetAgent :: String -> Env -> Env
+envUnsetAgent name (Env sim (setAgs :!: iters) ags)
+  = Env sim ((removeItem (\(ag,_) -> (agentType ag) == name) setAgs) :!: iters) ags
 
 envSetIterations :: Int -> Env -> Env
 envSetIterations n (Env sim (setAgs :!: _) ags) = Env sim (setAgs :!: n) ags

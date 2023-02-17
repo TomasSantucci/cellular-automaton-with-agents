@@ -3,23 +3,19 @@ module Monads where
 import AST
 import Data.Strict.Tuple
 import Environment
-import Control.Monad                  ( liftM
-                                      , ap
-                                      )
+import Control.Monad (liftM, ap)
 
 class Monad m => MonadState m where
     addAgent :: Agent -> m Agent
     getAgents :: m [(Agent, Int)]
     setAgent :: String -> Int -> m ()
-    removeAgent :: String -> m ()
+    unsetAgent :: String -> m ()
     setIterations :: Int -> m ()
     getIterations :: m Int
     addSimulation :: Simulation -> m ()
 
 class Monad m => MonadError m where
     throw :: String -> m a
-
--- Monad definition and instances
 
 newtype StateError a = StateError {runStateError :: Env -> Either String (Pair a Env)}
 
@@ -48,17 +44,13 @@ instance MonadState StateError where
                                         Nothing -> Left "Undef Agent"
                                         Just ag -> Right (() :!: (addSetAgent ag n s)))
 
-  removeAgent name = StateError (\s -> Right (() :!: removeSetAgent name s))
+  unsetAgent name = StateError (\s -> Right (() :!: envUnsetAgent name s))
 
   setIterations n = StateError (\s -> Right (() :!: (envSetIterations n s)))
 
   getIterations = StateError (\s -> Right ((envGetIterations s) :!: s))
 
   addSimulation sim = StateError (\s -> Right (() :!: (envAddSimulation sim s)))
-
-  --parseFile path = StateError (\s -> case parsePath path of
-  --                                     Left error -> Left error
-  --                                     Just res -> Right (res :!: s))
 
 stateErrorGetEnv :: Either String (Pair a Env) -> Either String Env
 stateErrorGetEnv (Right (_ :!: env)) = Right env

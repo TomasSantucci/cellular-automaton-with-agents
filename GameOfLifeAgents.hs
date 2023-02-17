@@ -1,36 +1,35 @@
-module GameOfLifeAgents where
+module GameOfLifeAgents (runSims) where
 
 import AST
-import           Control.Concurrent
+import Agents
 import Graphics.Gloss
-import System.Random (newStdGen, mkStdGen, StdGen)
-import           Data.Maybe
-import Data.Vector as V (sequence_, map, imap, toList, empty, null)
+import System.Random (newStdGen, StdGen)
+import Data.Maybe
+import Data.Vector as V (map, toList, empty, null, Vector)
 
-cell2pic :: Agent -> Picture
-cell2pic agent = rectMoved
-  where (x,y) = agentPoint agent
-        stName = agentStatus agent
-        dimension = 20
-        col = case lookup stName (agentColors agent) of
+cellToPicture :: Agent -> Picture
+cellToPicture (Agent _ (x,y) state colors _ _ _)
+  = translate (fromIntegral (x*cellSize)) (fromIntegral (-y*cellSize)) $ color col rectangle
+  where col = case lookup state colors of
                 Nothing -> greyN 0.5
                 Just c -> c
-        rectangle = rectangleSolid (fromIntegral dimension) (fromIntegral dimension)
-        rectColored = color col rectangle
-        rectMoved = translate (fromIntegral (x*dimension)) (fromIntegral (-y*dimension)) rectColored
+        rectangle = rectangleSolid (fromIntegral cellSize) (fromIntegral cellSize)
+        cellSize = 30
 
-cells2pic (cells,_) = pictures $ V.toList $ V.map cell2pic cells
+cellsToPicture :: (V.Vector Agent, b) -> Picture
+cellsToPicture (cells,_) = pictures $ V.toList $ V.map cellToPicture cells
 
-getRngs :: Int -> IO ([StdGen])
-getRngs 1 = do rng <- newStdGen
-               return [rng]
-getRngs n = do rng <- newStdGen
-               rngs <- getRngs (n-1)
-               return $ (rng:rngs)
+getRandomGens :: Int -> IO ([StdGen])
+getRandomGens 1 = do rng <- newStdGen
+                     return [rng]
+getRandomGens n = do rng <- newStdGen
+                     rngs <- getRandomGens (n-1)
+                     return $ (rng:rngs)
 
-applyRngs :: Int -> [a] -> [a -> b] -> [(b,Int)]
-applyRngs n [] [] = []
-applyRngs n (x:xs) (f:fs) = (f x, n):(applyRngs (n+1) xs fs)
+getRandomGames :: Int -> [StdGen] -> [StdGen -> (Game,Int)] -> [Model]
+getRandomGames _ [] [] = []
+getRandomGames simIndex (x:xs) (f:fs)
+  = (f x, simIndex):(getRandomGames (simIndex+1) xs fs)
 
 emptyGame :: Game
 emptyGame = (V.empty, (0,0))
@@ -38,42 +37,47 @@ emptyGame = (V.empty, (0,0))
 isEmptyGame :: Game -> Bool
 isEmptyGame (cells,_) = V.null cells
 
+startScreen :: Int -> Picture
 startScreen n = pictures [pic2,pic1]
-  where pic1 = color white $ Translate (-125) (0) $ Scale 0.3 0.3 $ Text ("simulacion " ++ (show n))
+  where pic1 = color white $ Translate (-125) (0) $ Scale 0.3 0.3 $ Text ("Simulacion " ++ (show n))
         pic2 = Translate (-10) 10 $ color black $ rectangleSolid 300 100
 
-get :: [StdGen -> (Game, Int)] -> IO ()
-get xs =
-  do rngs <- getRngs (length xs)
-     let listOfGames = ((emptyGame,0),0):(applyRngs 0 rngs xs)
-     simulate screen white 1 listOfGames g (\_ _ model -> f model)
+initialModel :: Model
+initialModel = ((emptyGame, 0), 0)
+
+nextModel :: [Model] -> [Model]
+nextModel [((game,0),_)] = [((game,0),0)]
+nextModel (((game,iterations),index):rest)
+  | V.null cells = rest
+  | iterations == 0 = ((emptyGame,0),index+1):rest
+  | otherwise = (((nextState (cells,dimensions)),iterations-1),index):rest
+    where cells = Prelude.fst game
+          dimensions = Prelude.snd game
+
+drawModel :: [Model] -> Picture
+drawModel [] = startScreen 0
+drawModel (((game,_),n):_) = if isEmptyGame game then startScreen n else cellsToPicture game
+
+runSims :: [StdGen -> (Game, Int)] -> IO ()
+runSims sims =
+  do rngs <- getRandomGens (length sims)
+     let listOfGames = initialModel : (getRandomGames 0 rngs sims)
+     simulate screen white 10 listOfGames drawModel (\_ _ model -> nextModel model)
   where screen = InWindow "game" (500,500) (500,500)
-        g (((game,iters),n):xs) = if isEmptyGame game then startScreen n else cells2pic game
-        f [((game,0),_)] = [((game,0),0)]
-        f ((((cells,dim),it),n):rest) | V.null cells = rest
-                                      | it == 0 = ((emptyGame,0),n+1):rest
-                                      | otherwise = (((nextState (cells,dim)),it-1),n):rest
 
 nextState :: Game -> Game
 nextState game = (V.map (`makeCell` game) (fst game),snd game)
 
 makeCell :: Agent -> Game -> Agent
-makeCell ag@(Agent name point status colors rules sight atts) game =
-  Agent name point (nextAgentStatus game (filterTransitions ag) ag) colors rules sight atts 
+makeCell ag@(Agent name point _ colors rules sight atts) game =
+  Agent name point (nextAgentState game (filterRules ag) ag) colors rules sight atts 
 
-filterTransitions :: Agent -> [Game -> Agent -> Maybe Result]
-filterTransitions agent = [y | (x,y) <- (agentTransitions agent), x == (agentStatus agent)]
+filterRules :: Agent -> [Game -> Agent -> Maybe Result]
+filterRules agent = [y | (x,y) <- (agentRules agent), x == (agentState agent)]
 
-updateList (s,v) [] = [(s,v)]
-updateList (s,v) ((s',v'):xs) = if s == s' then (s,v):xs
-                                           else (s',v'):(updateList (s,v) xs)
-
-updateAtt :: Agent -> (String, Int) -> Agent
-updateAtt (Agent n p st cols t s atts) att = Agent n p st cols t s (updateList att atts)
-
-nextAgentStatus :: Game -> [Game -> Agent -> Maybe Result] -> Agent -> Status
-nextAgentStatus _ [] agent = agentStatus agent
-nextAgentStatus game (f:fs) agent = case f game agent of
-                                      Nothing -> nextAgentStatus game fs agent
+nextAgentState :: Game -> [Game -> Agent -> Maybe Result] -> Agent -> State
+nextAgentState _ [] agent = agentState agent
+nextAgentState game (f:fs) agent = case f game agent of
+                                      Nothing -> nextAgentState game fs agent
                                       Just (Left st) -> st
-                                      Just (Right att) -> nextAgentStatus game fs (updateAtt agent att)
+                                      Just (Right att) -> nextAgentState game fs (updateAtt agent att)
