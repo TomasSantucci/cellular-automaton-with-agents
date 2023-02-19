@@ -74,20 +74,15 @@ runSims sims cellSize speed =
   where screen = InWindow "game" (900,900) (500,0)
 
 nextState :: Game -> Game
-nextState game = (V.map (`makeCell` game) (fst game),snd game)
+nextState game@(cells, dimensions)
+  = let newCells = V.map (\ag -> nextAgentState game (filterRules ag) ag) cells
+    in (newCells, dimensions)
 
-makeCell :: Agent -> Game -> Agent
-makeCell ag@(Agent name point _ colors rules sight atts) game =
-  Agent name point (nextAgentState game (filterRules ag) ag) colors rules sight atts 
-
-filterRules :: Agent -> [Game -> Agent -> Maybe Result]
-filterRules agent = [y | (x,y) <- (agentRules agent), x == (agentState agent)]
-
-nextAgentState :: Game -> [Game -> Agent -> Maybe Result] -> Agent -> State
-nextAgentState _ [] agent = agentState agent
+nextAgentState :: Game -> [Game -> Agent -> Maybe Result] -> Agent -> Agent
+nextAgentState _ [] agent = agent
 nextAgentState game (f:fs) agent = case f game agent of
                                       Nothing -> nextAgentState game fs agent
-                                      Just (Left st) -> st
+                                      Just (Left st) -> updateState agent st
                                       Just (Right att) -> nextAgentState game fs (updateAtt agent att)
 
 -- suponemos que siempre cae dentro de los limites, que en realidad siempre pasa
