@@ -1,0 +1,6 @@
+5,5
+[cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,
+ cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,
+ cell-dead, cell-alive, cell-alive, cell-alive, cell-dead,
+ cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,
+ cell-dead, cell-dead, cell-dead, cell-dead, cell-dead]

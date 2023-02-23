@@ -1,0 +1,16 @@
+define (cell, sight = 1) {
+    states:
+        alive black, dead white
+
+    rules:
+        alive : not (((countStatus alive allNeighs) == 2)
+                or ((countStatus alive allNeighs) == 3))
+                -> newState dead
+        dead : countStatus alive allNeighs == 3 -> newState alive
+}
+
+setIterations 50
+
+setAgent cell 1
+
+startPath "./grids/bigblock.txt"

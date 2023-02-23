@@ -1,0 +1,13 @@
+10,10
+[
+ cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,
+ cell-dead, cell-dead, cell-alive, cell-dead, cell-dead,cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,
+ cell-dead, cell-dead, cell-dead, cell-alive, cell-dead,cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,
+ cell-dead, cell-alive, cell-alive, cell-alive, cell-dead,cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,
+ cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,
+ cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,
+ cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,
+ cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,
+ cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,
+ cell-dead, cell-dead, cell-dead, cell-dead, cell-dead,cell-dead, cell-dead, cell-dead, cell-dead, cell-dead 
+]
