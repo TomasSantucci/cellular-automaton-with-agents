@@ -164,7 +164,7 @@ eval (DefAgent name sight atts statesComm rulesComm)
        let attList = attributesList atts
        checkPredicate states null "No states defined"
        checkPredicate rules null ("No transition rules defined for " ++ name)
-       addAgent (Agent name (0,0) (Prelude.fst (head states)) states rules sight attList)
+       addAgent (Agent name (0,0) (fst (head states)) states rules sight attList)
 
 eval (SetAgent agname n) = setAgent agname n
 eval (UnsetAgent agname) = unsetAgent agname
