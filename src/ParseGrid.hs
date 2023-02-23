@@ -18,8 +18,8 @@ lis = makeTokenParser (emptyDef {reservedOpNames  = ["-", ","]})
 parseCell :: Parser Agent
 parseCell = do name <- identifier lis
                reservedOp lis "-"
-               status <- identifier lis
-               return (Agent name (0,0) status [] [] 0 [])
+               state <- identifier lis
+               return (Agent name (0,0) state [] [] 0 [])
 
 parseGame :: Parser [Agent]
 parseGame = sepBy parseCell (reservedOp lis ",")

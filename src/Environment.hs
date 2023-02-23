@@ -4,8 +4,6 @@ import AST
 import Data.List (find)
 import Data.Strict.Tuple as T
 
--- Env data and functions definitions
-
 initEnv :: Env
 initEnv = Env [] ([] :!: 0) []
 

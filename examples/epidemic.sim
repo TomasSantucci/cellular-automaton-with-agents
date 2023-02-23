@@ -1,37 +1,37 @@
-define (person, sight = 1) {
+define (person, sight 1) {
     attributes:
-        severity = 0 health = 150 time = 0
+        severity 0, health 150, time 0
     
     states:
-        healthy white, infected makeColor 246 107 16 255, veryInfectious red, dead black,
-        cured makeColor 36 114 255 255
+        healthy white, infected color 246 107 16 255, veryInfectious red, dead black,
+        cured color 36 114 255 255
     
     rules:
-        healthy : countTypes virus neighs 4 4 == 1 -> newState veryInfectious
-        healthy : countStatus infected allNeighs > 4 -> newState infected
-        healthy : countStatus veryInfectious allNeighs > 0 -> newState infected
+        healthy : neighborType 4 == virus -> newState veryInfectious
+        healthy : countStatus infected all > 4 -> newState infected
+        healthy : countStatus veryInfectious all > 0 -> newState infected
 
         infected : true -> changeAttribute time (attribute time + 1)
         infected : attribute time > 6 -> newState cured
         infected : attribute severity > 10 -> newState veryInfectious
-        infected : true -> changeAttribute severity (attribute severity + countStatus infected allNeighs)
+        infected : true -> changeAttribute severity (attribute severity + countStatus infected all)
         infected : true -> changeAttribute health (attribute health - attribute severity)
 
         veryInfectious : attribute health < 1 -> newState dead
         veryInfectious : 
-            true -> changeAttribute severity (attribute severity + (2 * countStatus infected allNeighs))
+            true -> changeAttribute severity (attribute severity + (2 * countStatus infected all))
         veryInfectious :
             true -> changeAttribute health (attribute health - attribute severity)
 }
 
-define (maskPeople, sight = 1) {
+define (maskPeople, sight 1) {
     states:
-        mask makeColor 164 196 255 255
+        mask color 164 196 255 255
     rules:
         mask : false -> newState mask
 }
 
-define (virus, sight = 1) {
+define (virus, sight 1) {
     states:
         virus green
     rules:

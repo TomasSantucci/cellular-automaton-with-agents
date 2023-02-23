@@ -5,7 +5,7 @@ import Agents
 import Monads
 import Cellular (runSims)
 import Data.Vector as V (fromList, imap, map, Vector)
-import System.Random (StdGen)
+import System.Random (newStdGen)
 import System.Random.Shuffle (shuffle')
 import ParseGrid (parseFile)
 import Environment
@@ -49,16 +49,11 @@ assignPositions dimensions agents
   = V.imap (\idx -> \agent -> setPosition agent (idxToPoint idx dimensions)) agents
     where idxToPoint idx (xLim, _) = (mod idx xLim, div idx xLim)
 
-simsToGrids :: [Simulation] -> IO [StdGen -> (Game,Int)]
+simsToGrids :: [Simulation] -> IO [(Game,Int)]
 simsToGrids [] = return []
-simsToGrids ((Simulation agents dimensions iterations):rest)
+simsToGrids (sim:rest)
   = do r2 <- simsToGrids rest
-       let r1 = createGrid agents dimensions iterations
-       return (r1:r2)
-
-simsToGrids ((SimulationPath path iterations agentsDefined):rest)
-  = do r2 <- simsToGrids rest
-       r1 <- createGridWithPath path iterations agentsDefined
+       r1 <- createGrid sim
        return (r1:r2)
 
 handleFileParsing :: String -> String -> IO ([Agent], MyPoint)
@@ -67,18 +62,18 @@ handleFileParsing path contents
       Left _ -> ioError $ userError $ "Error parsing " ++ path
       Right r -> return r
 
-createGridWithPath :: String -> Int -> [(Agent, Int)] -> IO (StdGen -> (Game,Int))
-createGridWithPath path iterations agentsDefined =
-  do contents <- readFile path
-     (rawCells, dimensions) <- handleFileParsing path contents
-     let limitedSightAgents = fixAgentsSights agentsDefined dimensions
-         cells = V.map (fillAgent limitedSightAgents)
-                       $ assignPositions dimensions $ V.fromList rawCells
-     return (\_ -> ((cells, dimensions), iterations))
+createGrid :: Simulation -> IO (Game,Int)
+createGrid (Simulation agents (x,y) iterations)
+  = do rng <- newStdGen
+       let sortedAgents = multiplyAgents $ fixAgentsSights agents (x,y)
+           shuffledAgents = V.fromList $ shuffle' sortedAgents (x*y) rng
+           cells = assignPositions (x,y) shuffledAgents
+       return ((cells, (x,y)), iterations)
 
-createGrid :: [(Agent,Int)] -> MyPoint -> Int -> (StdGen -> (Game,Int))
-createGrid agents (x,y) iterations
-  = \rng -> let sortedAgents = multiplyAgents $ fixAgentsSights agents (x,y)
-                shuffledAgents = V.fromList $ shuffle' sortedAgents (x*y) rng
-                cells = assignPositions (x,y) shuffledAgents
-            in ((cells, (x,y)), iterations)
+createGrid (SimulationPath path iterations agentsDefined)
+  = do contents <- readFile path
+       (rawCells, dimensions) <- handleFileParsing path contents
+       let limitedSightAgents = fixAgentsSights agentsDefined dimensions
+           cells = V.map (fillAgent limitedSightAgents)
+                         $ assignPositions dimensions $ V.fromList rawCells
+       return ((cells, dimensions), iterations)

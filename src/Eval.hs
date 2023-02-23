@@ -1,17 +1,13 @@
-module Eval (eval, slice) where
+module Eval (eval) where
 
 import AST
 import Monads
 import Data.Vector as V ((!))
 import Graphics.Gloss  
 
--- Parsing functions
-
--- Slices a list
 slice :: Int -> Int -> [a] -> [a]
 slice from to xs = take (to - from + 1) (drop from xs)
 
--- Takes a data for a transition and returns a transition function
 parseRule :: MonadError m => BoolExp -> UnparsedResult -> m (Game -> Agent -> Maybe Result)
 parseRule boolexp (Left newState)
   = do boolFun <- boolExpToFunction boolexp
@@ -26,7 +22,6 @@ parseRule boolexp (Right (attName, intexp))
                                then Just (Right (attName, (intFun game agent)))
                                else Nothing
 
--- Takes a RulesComm datatype and returns a list of the transitions
 rulesList :: MonadError m => RulesComm -> m [Rule]
 rulesList (DefRule state boolexp res)
   = do rule <- parseRule boolexp res
@@ -60,45 +55,40 @@ attributesList NoAtt = []
 attributesList (Attribute s v) = [(s,v)]
 attributesList (SeqAtt att1 att2) = (attributesList att1) ++ (attributesList att2)
 
--- Transforms a 2-d point into an index of a 1-d vector
 pointToIdx :: MyPoint -> MyPoint -> Int
 pointToIdx (x,y) (xLim, yLim) = let newX = fixPos x xLim
                                     newY = fixPos y yLim
                                 in xLim * newY + newX
   where fixPos m n = if m < 0 then m + n else mod m n
 
--- Returns the agent placed in the position given in the game
 getCell :: MyPoint -> Game -> Agent
 getCell pos (agents, dimensions) = (V.!) agents idx
   where idx = pointToIdx pos dimensions
 
--- Given a sight and a certain neighbor, returns its position
 direction :: Int -> Int -> (Int, Int)
 direction n sight = (x - sight, y - sight)
   where totalRows = 2*sight + 1
-        two = 2 :: Integer
-        useN = if n >= div (totalRows^two-1) 2 then n+1 else n
+        fixPos n total | total <= n = 0
+                       | div total 2 <= n = n+1
+                       | otherwise = n
+        useN = fixPos (abs n) (totalRows*totalRows-1)
         y = div useN totalRows
         x = useN - totalRows * y
 
--- Given the sight of an agent returns all the directions towards its neighbors
 directions :: Int -> [(Int,Int)]
 directions n = [(x,y) | y <- [-n .. n], x <- [-n .. n], not ((x == 0) && (y == 0))]
 
--- Finds a neighbor given an agent, number and game
 findNeighbor :: Game -> Neighbor -> Agent -> Agent
 findNeighbor game neigh agent = let (x,y) = agentPoint agent 
                                     (x',y') = direction (neigh-1) (agentSight agent)
                                 in getCell (x+x',y+y') game
 
--- Given an agent and a game returns a list of its neighbors
 getNeighbors :: Agent -> Game -> [MyPoint] -> [Agent]
 getNeighbors agent game dirs = getNeighsAux agent game dirs
   where (x,y) = agentPoint agent
         getNeighsAux _ _ [] = []
         getNeighsAux ag gam ((x',y'):dirsLeft) = (getCell (x+x',y+y') gam):(getNeighsAux ag gam dirsLeft)
 
--- Given an agent returns the number of neighbors that satisfy the count condition
 findCount :: (Agent -> String) -> String -> Neighbors -> Game -> Agent -> Int
 findCount fAg s AllNeighbors game agent
   = foldr f 0 $ getNeighbors agent game $ directions (agentSight agent)
@@ -133,8 +123,6 @@ intExpToFunction (Div _ 0) = throw "Div by zero"
 intExpToFunction (Div ie n) = do r <- intExpToFunction ie
                                  return (\game agent -> div (r game agent) n)
 
--- Transforms a bool expression into a function that receives a game
--- and an agent and returns True if the expression is satisfied
 boolExpToFunction :: MonadError m => BoolExp -> m (Game -> Agent -> Bool)
 boolExpToFunction ExpFalse = return (\_ _ -> False)
 boolExpToFunction ExpTrue = return (\_ _ -> True)

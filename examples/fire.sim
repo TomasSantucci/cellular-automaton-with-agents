@@ -1,23 +1,23 @@
-define (tree, sight = 2) {
+define (tree, sight 2) {
     attributes:
-        life = 100
+        life 100
 
     states:
-        normal makeColor 87 39 19 255, burning red, burnt black
+        normal color 87 39 19 255, burning red, burnt black
 
     rules:
         burning : true -> changeAttribute life ((attribute life) / 2)
         burning : not (attribute life > 0) -> newState burnt
 
-        normal : (countStatus burning allNeighs) > 6 -> newState burning
+        normal : (countStatus burning all) > 6 -> newState burning
 }
 
-define (grass, sight = 1) {
+define (grass, sight 1) {
     attributes:
-        life = 50
+        life 50
 
     states:
-        normal green, burning makeColor 255 137 36 255, burnt black
+        normal green, burning color 255 137 36 255, burnt black
 
     rules:
         burning : true -> changeAttribute life (attribute life / 2)
@@ -25,11 +25,11 @@ define (grass, sight = 1) {
         
         critical : true -> newState burnt
 
-        normal : (countStatus burning allNeighs) > 2 -> newState burning
-        normal : (countTypes fire allNeighs) > 0 -> newState burning
+        normal : (countStatus burning all) > 2 -> newState burning
+        normal : (countTypes fire all) > 0 -> newState burning
 }
 
-define (fire, sight = 1) {
+define (fire, sight 1) {
     states:
         fire red
     
@@ -37,9 +37,9 @@ define (fire, sight = 1) {
         fire : true -> newState fire
 }
 
-define (wall, sight = 1) {
+define (wall, sight 1) {
     states:
-        wall makeColor 36 255 187 255
+        wall color 36 255 187 255
 
     rules:
         wall: true -> newState wall

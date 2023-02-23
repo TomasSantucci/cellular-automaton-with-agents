@@ -12,19 +12,26 @@ import Data.Char
 %lexer {lexer} {TEOF}
 
 %token
-    '='               { TEquals }
     ':'               { TColon }
     '('               { TOpen }
     ')'               { TClose }
     '{'               { TOpenBracket }
     '}'               { TCloseBracket }
     '->'              { TArrow }
+    '+'               { TPlus }
+    '-'               { TMinus }
+    '/'               { TDiv }
+    '*'               { TTimes }
+    '=='              { TIsEqual }
+    ','               { TComma }
+    '<'               { TLt }
+    '>'               { TGt }
     'define'          { TDefine }
     'sight'           { TSight }
     'attributes'      { TAttributes }
     'rules'           { TRules }
     'states'          { TStates }
-    'makeColor'       { TMakeColor }
+    'color'           { TColor }
     'setAgent'        { TSetAgent }
     'start'           { TStart }
     'startPath'       { TStartPath }
@@ -32,27 +39,18 @@ import Data.Char
     'unsetAgent'      { TUnsetAgent }
     'newState'        { TNewState }
     'changeAttribute' { TChangeAttribute }
-    'allNeighs'       { TAllNeighs }
-    'type'            { TType }
-    'status'          { TStatus }
-    'neigh'           { TNeigh }
-    'neighs'          { TNeighs }
+    'all'             { TAll }
+    'neighborState'   { TNeighborState }
+    'neighborType'    { TNeighborType }
+    'neighbors'       { TNeighbors }
     'countStatus'     { TCountStatus }
     'countTypes'      { TCountTypes }
-    '<'               { TLt }
-    '>'               { TGt }
+    'attribute'       { TAttribute }
     'not'             { TNot }
     'true'            { TTrue }
     'false'           { TFalse }
     'and'             { TAnd }
     'or'              { TOr }
-    '+'               { TPlus }
-    '-'               { TMinus }
-    '/'               { TDiv }
-    '*'               { TTimes }
-    '=='              { TIsEqual }
-    'attribute'       { TAttribute }
-    ','               { TComma }
     STRING            { TString $$ }
     NUM               { TNum $$ }
     FILE              { TFile $$ }
@@ -68,8 +66,8 @@ import Data.Char
 Comms         : DefComm Comms                            { SeqComm $1 $2 }
               | DefComm                                  { $1 }
 
-DefComm       : 'define' '(' STRING ',' 'sight' '=' NUM ')'
-                '{' DefAttributes DefStates DefRules '}' { DefAgent $3 $7 $10 $11 $12 }
+DefComm       : 'define' '(' STRING ',' 'sight' NUM ')'
+                '{' DefAttributes DefStates DefRules '}' { DefAgent $3 $6 $9 $10 $11 }
               | 'setAgent' STRING NUM                    { SetAgent $2 $3 }
               | 'setIterations' NUM                      { Iterations $2 }
               | 'start' NUM NUM                          { Setup $2 $3 }
@@ -79,10 +77,10 @@ DefComm       : 'define' '(' STRING ',' 'sight' '=' NUM ')'
 DefAttributes : 'attributes' ':' Attributes              { $3 }
               |                                          { NoAtt }
 
-Attributes    : Attribute Attributes                     { SeqAtt $1 $2 }
+Attributes    : Attribute ',' Attributes                 { SeqAtt $1 $3 }
               | Attribute                                { $1 }
 
-Attribute     : STRING '=' NUM                           { Attribute $1 $3 }
+Attribute     : STRING NUM                               { Attribute $1 $2 }
 
 DefStates     : 'states' ':' States                      { $3 }
 
@@ -92,7 +90,7 @@ States        : State ',' States                         { SeqSt $1 $3 }
 State         : STRING DefColor                          { DefState $1 $2 }
 
 DefColor      : STRING                                   { ColorName $1 }
-              | 'makeColor' NUM NUM NUM NUM              { ColorMake $2 $3 $4 $5 }
+              | 'color' NUM NUM NUM NUM                  { ColorMake $2 $3 $4 $5 }
 
 DefRules      : 'rules' ':' Rules                        { $3 }
 
@@ -109,8 +107,8 @@ BoolExp       : 'true'                                   { ExpTrue }
               | BoolExp 'and' BoolExp                    { And $1 $3 }
               | BoolExp 'or' BoolExp                     { Or $1 $3 }
               | 'not' BoolExp                            { Not $2 }
-              | 'status' 'neigh' NUM '=' STRING          { EqState $3 $5 }
-              | 'type' 'neigh' NUM '=' STRING            { EqAgent $3 $5 }
+              | 'neighborState' NUM '==' STRING          { EqState $2 $4 }
+              | 'neighborType' NUM '==' STRING           { EqAgent $2 $4 }
               | IntExp '==' IntExp                       { Eq $1 $3 }
               | IntExp '<' IntExp                        { Lt $1 $3 }
               | IntExp '>' IntExp                        { Gt $1 $3 }
@@ -126,8 +124,8 @@ IntExp        : NUM                                      { Const $1 }
               | IntExp '*' IntExp                        { Times $1 $3 }
               | '(' IntExp ')'                           { $2 }
 
-Neighbors     : 'allNeighs'                              { AllNeighbors }
-              | 'neighs' NUM NUM                         { Neighbors $2 $3 }
+Neighbors     : 'all'                                    { AllNeighbors }
+              | 'neighbors' NUM NUM                      { Neighbors $2 $3 }
 
 
 {
@@ -157,10 +155,11 @@ catchP m k = \s l -> case m s l of
                         Failed e -> k e s l
 
 happyError :: P a
-happyError = \ s i -> Failed $ "Línea "++(show (i::LineNumber))++": Error de parseo\n"++(s)
+happyError = \ _ i -> Failed $ "Línea "++(show (i::LineNumber))++": Error de parseo\n"
 
 data Token = TString String
-             | TEquals
+             | TNum Int
+             | TFile String
              | TColon
              | TOpen
              | TClose
@@ -178,33 +177,32 @@ data Token = TString String
              | TSetIterations
              | TNewState
              | TStates
-             | TMakeColor
+             | TColor
              | TChangeAttribute
              | TTrue
              | TFalse
-             | TNum Int
              | TComma
-             | TAllNeighs
+             | TAll
              | TType
              | TStatus
-             | TNeigh
-             | TNeighs
+             | TNeighborState
+             | TNeighborType
+             | TNeighbors
              | TCountStatus
              | TCountTypes
-             | TLt
-             | TGt
-             | TAnd
-             | TOr
              | TSetAgent
-             | TNot
-             | TEOF
-             | TFile String
+             | TIsEqual
+             | TAttribute
              | TPlus
              | TMinus
              | TDiv
              | TTimes
-             | TIsEqual
-             | TAttribute
+             | TNot
+             | TLt
+             | TGt
+             | TAnd
+             | TOr
+             | TEOF
              deriving Show
 
 ----------------------------------
@@ -227,7 +225,6 @@ lexer cont s = case s of
                     ('}':cs) -> cont TCloseBracket cs
                     (':':cs) -> cont TColon cs
                     (',':cs) -> cont TComma cs
-                    ('=':cs) -> cont TEquals cs
                     ('<':cs) -> cont TLt cs
                     ('>':cs) -> cont TGt cs
                     ('+':cs) -> cont TPlus cs
@@ -240,7 +237,7 @@ lexer cont s = case s of
                     where lexVar cs = case span isAlphaNum cs of
                               ("define",rest)  -> cont TDefine rest
                               ("states",rest)  -> cont TStates rest
-                              ("makeColor",rest)  -> cont TMakeColor rest
+                              ("color",rest)  -> cont TColor rest
                               ("sight",rest)  -> cont TSight rest
                               ("attributes",rest)  -> cont TAttributes rest
                               ("attribute",rest)  -> cont TAttribute rest
@@ -252,11 +249,10 @@ lexer cont s = case s of
                               ("setIterations",rest)  -> cont TSetIterations rest
                               ("newState",rest)  -> cont TNewState rest
                               ("changeAttribute",rest)  -> cont TChangeAttribute rest
-                              ("allNeighs",rest)  -> cont TAllNeighs rest
-                              ("type",rest)  -> cont TType rest
-                              ("status",rest)  -> cont TStatus rest
-                              ("neigh",rest)  -> cont TNeigh rest
-                              ("neighs",rest)  -> cont TNeighs rest
+                              ("all",rest)  -> cont TAll rest
+                              ("neighborType",rest)  -> cont TNeighborType rest
+                              ("neighborState",rest)  -> cont TNeighborState rest
+                              ("neighbors",rest)  -> cont TNeighbors rest
                               ("countStatus",rest)  -> cont TCountStatus rest
                               ("countTypes",rest)  -> cont TCountTypes rest
                               ("not",rest)  -> cont TNot rest
