@@ -1,4 +1,4 @@
-module ParseGame (parseFile) where
+module ParseGrid (parseFile) where
 
 import AST
 import Text.ParserCombinators.Parsec
@@ -13,29 +13,23 @@ totParser p = do
   return t
 
 lis :: TokenParser u
-lis = makeTokenParser (emptyDef)
-
-escapeP :: Parser a -> Parser a
-escapeP p = try p <|> (do char '\n'
-                          escapeP p)
-                  <|> (do char ' '
-                          escapeP p)
+lis = makeTokenParser (emptyDef {reservedOpNames  = ["-", ","]})
 
 parseCell :: Parser Agent
-parseCell = do name <- many1 alphaNum 
-               char '-'
-               status <- many1 alphaNum 
+parseCell = do name <- identifier lis
+               reservedOp lis "-"
+               status <- identifier lis
                return (Agent name (0,0) status [] [] 0 [])
 
 parseGame :: Parser [Agent]
-parseGame = sepBy (escapeP parseCell) (escapeP $ char ',')
+parseGame = sepBy parseCell (reservedOp lis ",")
 
 getGame :: Parser ([Agent], MyPoint)
 getGame = do x <- natural lis
-             char ','
+             reservedOp lis ","
              y <- natural lis
              game <- brackets lis parseGame
-             if (length game) == ((fromIntegral x) *(fromIntegral y))
+             if (length game) == ((fromIntegral x) * (fromIntegral y))
                then return (game,(fromIntegral x, fromIntegral y))
                else return ([],(0,0))
 

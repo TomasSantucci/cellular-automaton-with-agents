@@ -1,4 +1,4 @@
-module Eval (eval) where
+module Eval (eval, slice) where
 
 import AST
 import Monads
@@ -76,7 +76,8 @@ getCell pos (agents, dimensions) = (V.!) agents idx
 direction :: Int -> Int -> (Int, Int)
 direction n sight = (x - sight, y - sight)
   where totalRows = 2*sight + 1
-        useN = if n >= div (totalRows^2-1) 2 then n+1 else n
+        two = 2 :: Integer
+        useN = if n >= div (totalRows^two-1) 2 then n+1 else n
         y = div useN totalRows
         x = useN - totalRows * y
 
@@ -161,19 +162,21 @@ boolExpToFunction (EqState neighbor stname)
 boolExpToFunction (EqAgent neighbor agname)
   = return (\game agent -> agentType (findNeighbor game neighbor agent) == agname)
 
--- When everything works try this
 checkPredicate :: (MonadState m, MonadError m) => a -> (a -> Bool) -> String -> m ()
 checkPredicate a p s = if p a then throw s else return ()
+
+checkAgentsSum :: Int -> [(Agent,Int)] -> Bool
+checkAgentsSum r agents = r /= amountDefined
+  where amountDefined = foldr (\(_,amount) accum -> amount + accum) 0 agents
 
 eval :: (MonadState m, MonadError m) => Comm -> m ()
 eval (DefAgent name sight atts statesComm rulesComm)
   = do states <- statesList statesComm
        rules <- rulesList rulesComm
+       let attList = attributesList atts
        checkPredicate states null "No states defined"
        checkPredicate rules null ("No transition rules defined for " ++ name)
-       let attList = attributesList atts
        addAgent (Agent name (0,0) (Prelude.fst (head states)) states rules sight attList)
-       return ()
 
 eval (SetAgent agname n) = setAgent agname n
 eval (UnsetAgent agname) = unsetAgent agname
@@ -182,15 +185,14 @@ eval (Setup n m) = do i <- getIterations
                       checkPredicate i (0 ==) "Number of iterations unset"
                       agents <- getAgents
                       checkPredicate agents null "No agents defined"
+                      checkPredicate agents (checkAgentsSum (n*m)) "Agents set differ from dimensions"
                       addSimulation (Simulation agents (n,m) i)
-                      return ()
 
 eval (SetupPath path) = do agentsDefined <- getAgents
                            checkPredicate agentsDefined null "No agents defined"
                            i <- getIterations
                            checkPredicate i (0 ==) "Number of iterations unset"
                            addSimulation (SimulationPath path i agentsDefined)
-                           return ()
 
 eval (SeqComm c1 c2) = do eval c1
                           eval c2

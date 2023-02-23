@@ -1,12 +1,12 @@
 module Monads where
 
 import AST
-import Data.Strict.Tuple
 import Environment
+import Data.Strict.Tuple
 import Control.Monad (liftM, ap)
 
 class Monad m => MonadState m where
-    addAgent :: Agent -> m Agent
+    addAgent :: Agent -> m ()
     getAgents :: m [(Agent, Int)]
     setAgent :: String -> Int -> m ()
     unsetAgent :: String -> m ()
@@ -36,7 +36,7 @@ instance MonadError StateError where
   throw e = StateError (\_ -> Left e)
 
 instance MonadState StateError where
-  addAgent ag = StateError (\s -> Right (ag :!: (envIncludeAgent ag s)))
+  addAgent ag = StateError (\s -> Right (() :!: (envIncludeAgent ag s)))
 
   getAgents = StateError (\s -> Right ((envGetPreparedAgents s) :!: s))
 
