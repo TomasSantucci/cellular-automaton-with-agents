@@ -4,6 +4,11 @@
 
 El proyecto es un DSL para hacer simulaciones que combina funcionalidades de autómatas celulares y modelos basados en agentes.
 El modelo consiste en una matriz de células. Éstas pueden ser de distintos tipos, los cuales tienen atributos propios, estados diferentes y reglas de transición entre ellos diferentes también. En el lenguaje se especifican las condiciones de la simulación y en la ejecución se recopila toda esa información y se simulan las interacciones entre las células.
+
+Para crear reglas de transición hay expresiones booleanas que tienen en cuenta el estado del vecindario de cada célula (el cual puede ser mayor o menor dependiendo del atributo 'sight' de cada agente) y los atributos propios. También en las reglas se incluye la acción a realizar si la expresión fue 'true'. Se puede cambiar el estado actual de la célula o modificar el valor de cierto atributo de la misma.
+
+## Sintaxis
+
 Se definen los siguientes comandos:
 
 - definir agente: con nombre, estados (junto con un color para graficarlo), reglas de transición, atributos propios, etc
@@ -11,7 +16,57 @@ Se definen los siguientes comandos:
 - setear iteraciones: establece el numero de iteraciones para la próxima simulación
 - simular: dadas las dimensiones de la matriz, la crea con los agentes establecidos. La ubicación de los mismos sería aleatoria o se puede pasar un archivo con cierta matriz ya establecida.
 
-Para crear reglas de transición hay expresiones booleanas que tienen en cuenta el estado del vecindario de cada célula (el cual puede ser mayor o menor dependiendo del atributo 'sight' de cada agente) y los atributos propios. También en las reglas se incluye la acción a realizar si la expresión fue 'true'. Se puede cambiar el estado actual de la célula o modificar el valor de cierto atributo de la misma.
+Ejemplo:
+
+```
+define (nombre_de_agente, sight 2) {
+  attributes:
+    att1 0, att2 10
+  
+  states:
+    st1 white, st2 color 36 114 255
+  
+  rules:
+    st1 : true -> newState st2
+}
+
+setAgent nombre_de_agente 16
+unsetAgent nombre_de_agente
+setIterations 50
+start 4 4
+startPath "archivo.txt"
+```
+
+### Gramática de Reglas de Transición
+
+```
+Rule          : STRING ':' BoolExp '->' Result
+
+Result        : 'newState' STRING
+              | 'changeAttribute' STRING IntExp
+
+BoolExp       : 'true'
+              | 'false'
+              | BoolExp 'and' BoolExp
+              | BoolExp 'or' BoolExp
+              | 'not' BoolExp
+              | 'neighborState' NUM '==' STRING
+              | 'neighborType' NUM '==' STRING
+              | IntExp '==' IntExp
+              | IntExp '<' IntExp
+              | IntExp '>' IntExp
+              | '(' BoolExp ')'
+
+IntExp        : NUM
+              | 'countTypes' STRING Neighbors
+              | 'countStatus' STRING Neighbors
+              | 'attribute' STRING
+              | IntExp '+' IntExp
+              | IntExp '-' IntExp
+              | IntExp '/' NUM
+              | IntExp '*' IntExp
+              | '(' IntExp ')'
+```
 
 ## Organización
 
