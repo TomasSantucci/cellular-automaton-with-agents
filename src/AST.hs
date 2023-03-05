@@ -9,7 +9,7 @@ type State = String
 type Path = String
 type MyPoint = (Int, Int)
 type Game = (V.Vector Agent, MyPoint)
-type Rule = (State, Game -> Agent -> Maybe Result)
+type Rule = Game -> Agent -> Maybe (Result Int)
 data Env = Env [Simulation] (Pair [(Agent, Int)] Int) [Agent]
 type Model = ((Game, Int), Int)
 
@@ -22,7 +22,7 @@ data Agent = Agent {
   agentPoint :: MyPoint,
   agentState :: State,
   agentColors :: [(State,Color)],
-  agentRules :: [Rule],
+  agentRules :: [(State, Rule)],
   agentSight :: Int,
   agentAttributes :: [(String, Int)]
 }
@@ -33,33 +33,34 @@ data Neighbors
   = Neighbors Int Int
   | AllNeighbors
 
-type Result = Either State (String, Int)
-type UnparsedResult = Either State (String, IntExp)
+data Result t
+  = NewState State
+  | ChangeAttribute String t
 
-data IntExp
-  = Const Int
-  | TypeCount AgentName Neighbors
-  | StateCount State Neighbors
-  | Att String
-  | Plus IntExp IntExp
-  | Minus IntExp IntExp
-  | Div IntExp Int
-  | Times IntExp IntExp
-
-data BoolExp
-  = And BoolExp BoolExp
-  | Or BoolExp BoolExp
-  | Not BoolExp
-  | EqState Neighbor State
-  | EqAgent Neighbor AgentName
-  | Eq IntExp IntExp
-  | Lt IntExp IntExp
-  | Gt IntExp IntExp
-  | ExpTrue
-  | ExpFalse
+data Exp a where
+  -- Int
+  Const :: Int -> Exp Int
+  TypeCount :: AgentName -> Neighbors -> Exp Int
+  StateCount :: State -> Neighbors -> Exp Int
+  Att :: String -> Exp Int
+  Plus :: Exp Int -> Exp Int -> Exp Int
+  Minus :: Exp Int -> Exp Int -> Exp Int
+  Times :: Exp Int -> Exp Int -> Exp Int
+  Div :: Exp Int -> Int -> Exp Int
+  -- Bool
+  ExpTrue :: Exp Bool
+  ExpFalse :: Exp Bool
+  Lt :: Exp Int -> Exp Int -> Exp Bool
+  Gt :: Exp Int -> Exp Int -> Exp Bool
+  And :: Exp Bool -> Exp Bool -> Exp Bool
+  Or :: Exp Bool -> Exp Bool -> Exp Bool
+  Not :: Exp Bool -> Exp Bool
+  Eq :: Exp Int -> Exp Int -> Exp Bool
+  EqState :: Neighbor -> State -> Exp Bool
+  EqAgent :: Neighbor -> AgentName -> Exp Bool
 
 data RulesComm
-  = DefRule State BoolExp UnparsedResult
+  = DefRule State (Exp Bool) (Result (Exp Int))
   | Seq RulesComm RulesComm
 
 data Attributes
@@ -69,7 +70,7 @@ data Attributes
 
 data MyColor
   = ColorName String
-  | ColorMake Int Int Int Int
+  | ColorMake Int Int Int
 
 data StatesComm
   = DefState State MyColor

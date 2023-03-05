@@ -90,7 +90,7 @@ States        : State ',' States                         { SeqSt $1 $3 }
 State         : STRING DefColor                          { DefState $1 $2 }
 
 DefColor      : STRING                                   { ColorName $1 }
-              | 'color' NUM NUM NUM NUM                  { ColorMake $2 $3 $4 $5 }
+              | 'color' NUM NUM NUM                      { ColorMake $2 $3 $4 }
 
 DefRules      : 'rules' ':' Rules                        { $3 }
 
@@ -99,8 +99,8 @@ Rules         : Rule Rules                               { Seq $1 $2 }
 
 Rule          : STRING ':' BoolExp '->' Result           { DefRule $1 $3 $5 }
 
-Result        : 'newState' STRING                        { Left $2 }
-              | 'changeAttribute' STRING IntExp          { Right ($2,$3) }
+Result        : 'newState' STRING                        { NewState $2 }
+              | 'changeAttribute' STRING IntExp          { ChangeAttribute $2 $3 }
 
 BoolExp       : 'true'                                   { ExpTrue }
               | 'false'                                  { ExpFalse }

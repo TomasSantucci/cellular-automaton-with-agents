@@ -3,8 +3,8 @@ define (person, sight 1) {
         severity 0, health 150, time 0
     
     states:
-        healthy white, infected color 246 107 16 255, veryInfectious red, dead black,
-        cured color 36 114 255 255
+        healthy white, infected color 246 107 16, veryInfectious red, dead black,
+        cured color 36 114 255
     
     rules:
         healthy : neighborType 4 == virus -> newState veryInfectious
@@ -26,7 +26,7 @@ define (person, sight 1) {
 
 define (maskPeople, sight 1) {
     states:
-        mask color 164 196 255 255
+        mask color 164 196 255
     rules:
         mask : false -> newState mask
 }
@@ -43,8 +43,6 @@ setIterations 30
 setAgent person 215
 setAgent virus 10
 start 15 15
-
--- Now simulate if people wear masks
 
 setAgent maskPeople 20
 unsetAgent person

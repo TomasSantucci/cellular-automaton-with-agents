@@ -8,25 +8,23 @@ import Graphics.Gloss
 slice :: Int -> Int -> [a] -> [a]
 slice from to xs = take (to - from + 1) (drop from xs)
 
-parseRule :: MonadError m => BoolExp -> UnparsedResult -> m (Game -> Agent -> Maybe Result)
-parseRule boolexp (Left newState)
-  = do boolFun <- boolExpToFunction boolexp
+parseRule :: MonadError m => (Exp Bool) -> Result (Exp Int) -> m Rule
+parseRule boolexp (NewState newState)
+  = do boolFun <- expToFunction boolexp
        return $ \game agent -> if boolFun game agent
-                               then Just (Left newState)
+                               then Just (NewState newState)
                                else Nothing
 
-parseRule boolexp (Right (attName, intexp))
-  = do boolFun <- boolExpToFunction boolexp
-       intFun <- intExpToFunction intexp
+parseRule boolexp (ChangeAttribute attName intexp)
+  = do boolFun <- expToFunction boolexp
+       intFun <- expToFunction intexp
        return $ \game agent -> if boolFun game agent
-                               then Just (Right (attName, (intFun game agent)))
+                               then Just (ChangeAttribute attName (intFun game agent))
                                else Nothing
 
-rulesList :: MonadError m => RulesComm -> m [Rule]
-rulesList (DefRule state boolexp res)
-  = do rule <- parseRule boolexp res
-       return [(state, rule)]
-
+rulesList :: MonadError m => RulesComm -> m [(State, Rule)]
+rulesList (DefRule state boolexp res) = do rule <- parseRule boolexp res
+                                           return [(state, rule)]
 rulesList (Seq c1 c2) = do rules1 <- rulesList c1
                            rules2 <- rulesList c2
                            return (rules1 ++ rules2)
@@ -39,13 +37,13 @@ validateColor (ColorName "green") = Right green
 validateColor (ColorName "blue") = Right blue
 validateColor (ColorName "yellow") = Right yellow
 validateColor (ColorName n) = Left $ "Unknown color " ++ n
-validateColor (ColorMake r g b a) = Right $ makeColorI (f r) (f g) (f b) (f a)
+validateColor (ColorMake r g b) = Right $ makeColorI (f r) (f g) (f b) 255
   where f n = mod n 256
 
 statesList :: (MonadState m, MonadError m) => StatesComm -> m [(State,Color)]
 statesList (DefState st colName) = case validateColor colName of
-                                  Left e -> throw e
-                                  Right col -> return [(st,col)]
+                                     Left e -> throw e
+                                     Right col -> return [(st,col)]
 statesList (SeqSt c1 c2) = do st1 <- statesList c1
                               st2 <- statesList c2
                               return (st1 ++ st2)
@@ -102,52 +100,36 @@ getAttValue attName agent = case lookup attName (agentAttributes agent) of
                               Nothing -> 0
                               Just v -> v
 
-parseBinaryIntExp :: MonadError m => IntExp -> IntExp -> (Int -> Int -> a) -> m (Game -> Agent -> a)
-parseBinaryIntExp ie1 ie2 f
-  = do r1 <- intExpToFunction ie1
-       r2 <- intExpToFunction ie2
+parseBinaryExp :: MonadError m => (Exp a) -> (Exp a) -> (a -> a -> b) -> m (Game -> Agent -> b)
+parseBinaryExp e1 e2 f
+  = do r1 <- expToFunction e1
+       r2 <- expToFunction e2
        return (\game agent -> f (r1 game agent) (r2 game agent))
 
-intExpToFunction :: MonadError m => IntExp -> m (Game -> Agent -> Int)
-intExpToFunction (Const n) = return (\_ _ -> n)
-intExpToFunction (TypeCount name neighs) =
-  return (findCount agentType name neighs)
-intExpToFunction (StateCount status neighs) =
-  return (findCount agentState status neighs)
-intExpToFunction (Att attName) =
-  return (\_ agent -> getAttValue attName agent)
-intExpToFunction (Plus ie1 ie2) = parseBinaryIntExp ie1 ie2 (+)
-intExpToFunction (Minus ie1 ie2) = parseBinaryIntExp ie1 ie2 (-)
-intExpToFunction (Times ie1 ie2) = parseBinaryIntExp ie1 ie2 (*)
-intExpToFunction (Div _ 0) = throw "Div by zero"
-intExpToFunction (Div ie n) = do r <- intExpToFunction ie
-                                 return (\game agent -> div (r game agent) n)
+expToFunction :: MonadError m => Exp a -> m (Game -> Agent -> a)
+expToFunction (Const n) = return (\_ _ -> n)
+expToFunction (TypeCount name neighs) = return (findCount agentType name neighs)
+expToFunction (StateCount status neighs) = return (findCount agentState status neighs)
+expToFunction (Att attName) = return (\_ agent -> getAttValue attName agent)
+expToFunction (Plus ie1 ie2) = parseBinaryExp ie1 ie2 (+)
+expToFunction (Minus ie1 ie2) = parseBinaryExp ie1 ie2 (-)
+expToFunction (Times ie1 ie2) = parseBinaryExp ie1 ie2 (*)
+expToFunction (Div _ 0) = throw "Div by zero"
+expToFunction (Div ie n) = do r <- expToFunction ie
+                              return (\game agent -> div (r game agent) n)
 
-boolExpToFunction :: MonadError m => BoolExp -> m (Game -> Agent -> Bool)
-boolExpToFunction ExpFalse = return (\_ _ -> False)
-boolExpToFunction ExpTrue = return (\_ _ -> True)
-boolExpToFunction (Eq ie1 ie2) = parseBinaryIntExp ie1 ie2 (==)
-boolExpToFunction (Lt ie1 ie2) = parseBinaryIntExp ie1 ie2 (<)
-boolExpToFunction (Gt ie1 ie2) = parseBinaryIntExp ie1 ie2 (>)
-
-boolExpToFunction (And b1 b2)
-  = do be1 <- boolExpToFunction b1
-       be2 <- boolExpToFunction b2
-       return (\game agent -> (be1 game agent) && (be2 game agent))
-
-boolExpToFunction (Or b1 b2)
-  = do be1 <- boolExpToFunction b1
-       be2 <- boolExpToFunction b2
-       return (\game agent -> (be1 game agent) || (be2 game agent))
-
-boolExpToFunction (Not b)
-  = do be1 <- boolExpToFunction b
-       return (\game agent -> not (be1 game agent))
-
-boolExpToFunction (EqState neighbor stname)
+expToFunction ExpFalse = return (\_ _ -> False)
+expToFunction ExpTrue = return (\_ _ -> True)
+expToFunction (Eq ie1 ie2) = parseBinaryExp ie1 ie2 (==)
+expToFunction (Lt ie1 ie2) = parseBinaryExp ie1 ie2 (<)
+expToFunction (Gt ie1 ie2) = parseBinaryExp ie1 ie2 (>)
+expToFunction (And b1 b2) = parseBinaryExp b1 b2 (&&)
+expToFunction (Or b1 b2) = parseBinaryExp b1 b2 (||)
+expToFunction (Not b) = do be1 <- expToFunction b
+                           return (\game agent -> not (be1 game agent))
+expToFunction (EqState neighbor stname)
   = return (\game agent -> (agentState (findNeighbor game neighbor agent)) == stname)
-
-boolExpToFunction (EqAgent neighbor agname)
+expToFunction (EqAgent neighbor agname)
   = return (\game agent -> agentType (findNeighbor game neighbor agent) == agname)
 
 checkPredicate :: (MonadState m, MonadError m) => a -> (a -> Bool) -> String -> m ()
@@ -162,8 +144,6 @@ eval (DefAgent name sight atts statesComm rulesComm)
   = do states <- statesList statesComm
        rules <- rulesList rulesComm
        let attList = attributesList atts
-       checkPredicate states null "No states defined"
-       checkPredicate rules null ("No transition rules defined for " ++ name)
        addAgent (Agent name (0,0) (fst (head states)) states rules sight attList)
 
 eval (SetAgent agname n) = setAgent agname n
@@ -176,12 +156,11 @@ eval (Setup n m) = do i <- getIterations
                       checkPredicate agents (checkAgentsSum (n*m)) "Agents set differ from dimensions"
                       addSimulation (Simulation agents (n,m) i)
 
-eval (SetupPath path) = do agentsDefined <- getAgents
-                           checkPredicate agentsDefined null "No agents defined"
-                           i <- getIterations
+eval (SetupPath path) = do i <- getIterations
                            checkPredicate i (0 ==) "Number of iterations unset"
+                           agentsDefined <- getAgents
+                           checkPredicate agentsDefined null "No agents defined"
                            addSimulation (SimulationPath path i agentsDefined)
 
 eval (SeqComm c1 c2) = do eval c1
                           eval c2
-

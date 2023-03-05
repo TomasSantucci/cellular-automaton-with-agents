@@ -38,7 +38,7 @@ drawModel cellSize ((game,_):r) = cellsToPicture game cellSize
 
 runSims :: [(Game, Int)] -> Int -> Int -> IO ()
 runSims sims cellSize speed
-  = simulate screen (greyN 0.3) speed sims (drawModel cellSize) (\_ _ model -> nextModel model)
+  = simulate screen (greyN 0.6) speed sims (drawModel cellSize) (\_ _ model -> nextModel model)
   where screen = InWindow "Simulation" (900,900) (500,0)
 
 nextGameState :: Game -> Game
@@ -46,9 +46,9 @@ nextGameState game@(cells, dimensions)
   = let newCells = V.map (\ag -> nextAgentState game (filterRules ag) ag) cells
     in (newCells, dimensions)
 
-nextAgentState :: Game -> [Game -> Agent -> Maybe Result] -> Agent -> Agent
+nextAgentState :: Game -> [Rule] -> Agent -> Agent
 nextAgentState _ [] agent = agent
 nextAgentState game (f:fs) agent = case f game agent of
                                       Nothing -> nextAgentState game fs agent
-                                      Just (Left st) -> updateState agent st
-                                      Just (Right att) -> nextAgentState game fs (updateAtt agent att)
+                                      Just (NewState st) -> updateState agent st
+                                      Just (ChangeAttribute att v) -> nextAgentState game fs (updateAtt agent att v)

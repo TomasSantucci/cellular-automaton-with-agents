@@ -39,11 +39,11 @@ updateList (s,v) [] = [(s,v)]
 updateList (s,v) ((s',v'):xs) = if s == s' then (s,v):xs
                                            else (s',v'):(updateList (s,v) xs)
 
-updateAtt :: Agent -> (String, Int) -> Agent
-updateAtt (Agent n p st cols t s atts) att = Agent n p st cols t s (updateList att atts)
+updateAtt :: Agent -> String -> Int -> Agent
+updateAtt (Agent n p st cols t s atts) att v = Agent n p st cols t s (updateList (att,v) atts)
 
 updateState :: Agent -> State -> Agent
 updateState (Agent n p _ cols t s atts) st = Agent n p st cols t s atts
 
-filterRules :: Agent -> [Game -> Agent -> Maybe Result]
+filterRules :: Agent -> [Rule]
 filterRules agent = [y | (x,y) <- (agentRules agent), x == (agentState agent)]

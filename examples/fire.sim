@@ -3,7 +3,7 @@ define (tree, sight 2) {
         life 100
 
     states:
-        normal color 87 39 19 255, burning red, burnt black
+        normal color 87 39 19, burning red, burnt black
 
     rules:
         burning : true -> changeAttribute life ((attribute life) / 2)
@@ -17,7 +17,7 @@ define (grass, sight 1) {
         life 50
 
     states:
-        normal green, burning color 255 137 36 255, burnt black
+        normal green, burning color 255 137 36, burnt black
 
     rules:
         burning : true -> changeAttribute life (attribute life / 2)
@@ -39,7 +39,7 @@ define (fire, sight 1) {
 
 define (wall, sight 1) {
     states:
-        wall color 36 255 187 255
+        wall color 36 255 187
 
     rules:
         wall: true -> newState wall
