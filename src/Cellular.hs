@@ -43,12 +43,12 @@ runSims sims cellSize speed
 
 nextGameState :: Game -> Game
 nextGameState game@(cells, dimensions)
-  = let newCells = V.map (\ag -> nextAgentState game (filterRules ag) ag) cells
+  = let newCells = V.map (\ag -> nextAgentState game (agentCurrRules ag) ag) cells
     in (newCells, dimensions)
 
 nextAgentState :: Game -> [Rule] -> Agent -> Agent
 nextAgentState _ [] agent = agent
 nextAgentState game (f:fs) agent = case f game agent of
                                       Nothing -> nextAgentState game fs agent
-                                      Just (NewState st) -> updateState agent st
-                                      Just (ChangeAttribute att v) -> nextAgentState game fs (updateAtt agent att v)
+                                      Just (NewState st) -> agentSetState agent st
+                                      Just (ChangeAttribute att v) -> nextAgentState game fs (agentSetAtt agent att v)

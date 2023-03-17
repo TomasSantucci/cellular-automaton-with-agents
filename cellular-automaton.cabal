@@ -17,14 +17,18 @@ extra-source-files:  README.md
 library
   exposed-modules:     AST,
                        Agents,
+                       Neighbors,
                        Environment,
-                       Eval,
+                       EvalAST,
+                       EvalSim,
                        Cellular,
                        Monads,
                        Parse,
                        ParseGrid
   hs-source-dirs:      src
-  default-extensions:  GADTs
+  default-extensions:  GADTs,
+                       MultiWayIf,
+                       StandaloneDeriving
   build-depends:       base >= 4.7 && < 5,
                        vector,
                        strict,
@@ -40,7 +44,9 @@ library
 executable cellular-automaton
   hs-source-dirs:      app
   main-is:             Main.hs
-  default-extensions:  GADTs
+  default-extensions:  GADTs,
+                       MultiWayIf,
+                       StandaloneDeriving
   default-language:    Haskell2010
   build-depends:       cellular-automaton,
                        base >= 4.7 && < 5,

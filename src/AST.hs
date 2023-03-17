@@ -16,6 +16,7 @@ type Model = ((Game, Int), Int)
 data Simulation
   = Simulation [(Agent,Int)] MyPoint Int
   | SimulationPath String Int [(Agent, Int)]
+  deriving Show
 
 data Agent = Agent {
   agentType :: String,
@@ -27,15 +28,20 @@ data Agent = Agent {
   agentAttributes :: [(String, Int)]
 }
 
+instance Show Agent where
+  show agent = (agentType agent) ++ "-" ++ (agentState agent)
+
 type Neighbor = Int
 
 data Neighbors
   = Neighbors Int Int
   | AllNeighbors
+  deriving Show
 
 data Result t
   = NewState State
   | ChangeAttribute String t
+  deriving Show
 
 data Exp a where
   -- Int
@@ -59,22 +65,28 @@ data Exp a where
   EqState :: Neighbor -> State -> Exp Bool
   EqAgent :: Neighbor -> AgentName -> Exp Bool
 
+deriving instance Show (Exp a)
+
 data RulesComm
   = DefRule State (Exp Bool) (Result (Exp Int))
   | Seq RulesComm RulesComm
+  deriving Show
 
 data Attributes
   = NoAtt
   | Attribute String Int
   | SeqAtt Attributes Attributes
+  deriving Show
 
 data MyColor
   = ColorName String
   | ColorMake Int Int Int
+  deriving Show
 
 data StatesComm
   = DefState State MyColor
   | SeqSt StatesComm StatesComm
+  deriving Show
 
 data Comm
   = DefAgent AgentName Int Attributes StatesComm RulesComm
@@ -84,3 +96,4 @@ data Comm
   | Setup Int Int
   | SetupPath String
   | SeqComm Comm Comm
+  deriving Show

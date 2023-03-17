@@ -3,47 +3,51 @@ module Agents where
 import AST
 import qualified Data.List as L
 
-fixAgentsSights :: [(Agent, Int)] -> MyPoint -> [(Agent, Int)]
-fixAgentsSights agents (x,y) = L.map (\agent -> correctSight agent (min x y)) agents
+agentSetSight :: Agent -> Int -> Agent
+agentSetSight agent sight = agent {agentSight = sight}
 
-setPosition :: Agent -> MyPoint -> Agent
-setPosition (Agent name _ status states transitions sight atts) point
-  = Agent name point status states transitions sight atts
+agentSetAtt :: Agent -> String -> Int -> Agent
+agentSetAtt agent att v = agent {agentAttributes = updateList (att,v) agentAtts}
+  where agentAtts = agentAttributes agent
 
-copyAgent :: Agent -> Agent -> Agent
-copyAgent ref (Agent name point status _ _ _ _) =
+agentSetState :: Agent -> State -> Agent
+agentSetState agent st = agent {agentState = st}
+
+agentSetPos :: Agent -> MyPoint -> Agent
+agentSetPos agent point = agent {agentPoint = point}
+
+agentGetAttribute :: String -> Agent -> Int
+agentGetAttribute attName agent = case lookup attName (agentAttributes agent) of
+                              Nothing -> 0
+                              Just v -> v
+
+agentsFixSight :: [(Agent, Int)] -> MyPoint -> [(Agent, Int)]
+agentsFixSight agents (x,y) = L.map (\agent -> agentFixSight agent (min x y)) agents
+
+agentFixSight :: (Agent, Int) -> Int -> (Agent, Int)
+agentFixSight (ag,amount) maxSight 
+  | (agentSight ag) < maxSight = (ag, amount)
+  | otherwise = (agentSetSight ag (maxSight - 1),amount)
+
+agentCopy :: Agent -> Agent -> Agent
+agentCopy ref (Agent name point status _ _ _ _) =
   Agent name point status (agentColors ref) (agentRules ref) (agentSight ref) (agentAttributes ref)
 
-fillAgent :: [(Agent, Int)] -> Agent -> Agent
-fillAgent agentsDefined agent = case L.find (\(ag,_) -> (agentType ag) == (agentType agent)) agentsDefined of
+agentFill :: [(Agent, Int)] -> Agent -> Agent
+agentFill agentsDefined agent = case L.find (\(ag,_) -> (agentType ag) == (agentType agent)) agentsDefined of
                                   Nothing -> agent
-                                  Just (ref,_) -> copyAgent ref agent
+                                  Just (ref,_) -> agentCopy ref agent
 
-multiplyAgents :: [(Agent, Int)] -> [Agent]
-multiplyAgents [] = []
-multiplyAgents ((ag,amount):rest) = (buildList ag amount) ++ (multiplyAgents rest)
+agentsExpand :: [(Agent, Int)] -> [Agent]
+agentsExpand [] = []
+agentsExpand ((ag,amount):rest) = (buildList ag amount) ++ (agentsExpand rest)
   where buildList _ 0 = []
         buildList a amountLeft = a:(buildList a (amountLeft - 1))
-
-changeSight :: Agent -> Int -> Agent
-changeSight (Agent name point state colors rules _ atts) sight
-  = Agent name point state colors rules sight atts
-
-correctSight :: (Agent, Int) -> Int -> (Agent, Int)
-correctSight (ag,amount) maxSight 
-  | (agentSight ag) < maxSight = (ag, amount)
-  | otherwise = (changeSight ag (maxSight - 1),amount)
 
 updateList :: Eq a => (a,b) -> [(a,b)] -> [(a,b)]
 updateList (s,v) [] = [(s,v)]
 updateList (s,v) ((s',v'):xs) = if s == s' then (s,v):xs
                                            else (s',v'):(updateList (s,v) xs)
 
-updateAtt :: Agent -> String -> Int -> Agent
-updateAtt (Agent n p st cols t s atts) att v = Agent n p st cols t s (updateList (att,v) atts)
-
-updateState :: Agent -> State -> Agent
-updateState (Agent n p _ cols t s atts) st = Agent n p st cols t s atts
-
-filterRules :: Agent -> [Rule]
-filterRules agent = [y | (x,y) <- (agentRules agent), x == (agentState agent)]
+agentCurrRules :: Agent -> [Rule]
+agentCurrRules agent = [y | (x,y) <- (agentRules agent), x == (agentState agent)]
