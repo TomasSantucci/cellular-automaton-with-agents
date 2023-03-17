@@ -24,7 +24,8 @@ library
                        Cellular,
                        Monads,
                        Parse,
-                       ParseGrid
+                       ParseGrid,
+                       PP
   hs-source-dirs:      src
   default-extensions:  GADTs,
                        MultiWayIf,
@@ -38,7 +39,8 @@ library
                        containers,
                        mtl,
                        parsec,
-                       gloss
+                       gloss,
+                       pretty
   default-language: Haskell2010
 
 executable cellular-automaton
@@ -58,7 +60,8 @@ executable cellular-automaton
                        containers,
                        mtl,
                        parsec,
-                       gloss
+                       gloss,
+                       pretty
   ghc-options:         -Wall
                        -Wcompat
                        -Widentities

@@ -2,6 +2,7 @@ module Main (main) where
 
 import AST
 import Monads
+import PP
 import Environment
 import EvalAST (evalAST)
 import EvalSim (evalSim)
@@ -68,7 +69,7 @@ runOptions fp opts
       Failed e -> putStr e
       Ok ast   -> if
         | optAST opts -> print ast
---        | optPrint opts -> putStrLn (renderComm ast)
+        | optPrint opts -> putStrLn (renderComm ast)
         | optCellSize opts <= 0 -> ioError (userError "Tamaño de celda negativo o cero")
         | optFPS opts <= 0 -> ioError (userError "FPS negativo o cero")
         | otherwise -> runComm ast (optCellSize opts) (optFPS opts)
