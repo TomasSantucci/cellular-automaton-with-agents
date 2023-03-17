@@ -6,12 +6,10 @@ import Graphics.Gloss
 
 type AgentName = String
 type State = String
-type Path = String
 type MyPoint = (Int, Int)
-type Game = (V.Vector Agent, MyPoint)
-type Rule = Game -> Agent -> Maybe (Result Int)
+type Grid = (V.Vector Agent, MyPoint)
+type Rule = Grid -> Agent -> Maybe (Result Int)
 data Env = Env [Simulation] (Pair [(Agent, Int)] Int) [Agent]
-type Model = ((Game, Int), Int)
 
 data Simulation
   = Simulation [(Agent,Int)] MyPoint Int

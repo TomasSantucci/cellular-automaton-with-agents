@@ -13,11 +13,11 @@ envIncludeAgent ag (Env sim currSim ags) = Env sim currSim (ag:ags)
 envGetPreparedAgents :: Env -> [(Agent, Int)]
 envGetPreparedAgents (Env _ currSim _) = T.fst currSim
 
-findAgent :: String -> Env -> Maybe Agent
-findAgent name (Env _ _ ags) = find (\ag -> (agentType ag) == name) ags
+envFindAgent :: String -> Env -> Maybe Agent
+envFindAgent name (Env _ _ ags) = find (\ag -> (agentType ag) == name) ags
 
-addSetAgent :: Agent -> Int -> Env -> Env
-addSetAgent agent n (Env sim (setAgs :!: iters) ags) = Env sim (((agent,n):setAgs) :!: iters) ags
+envAddSetAgent :: Agent -> Int -> Env -> Env
+envAddSetAgent agent n (Env sim (setAgs :!: iters) ags) = Env sim (((agent,n):setAgs) :!: iters) ags
 
 removeItem :: (a -> Bool) -> [a] -> [a]
 removeItem _ [] = []

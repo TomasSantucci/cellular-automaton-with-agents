@@ -9,15 +9,15 @@ import Graphics.Gloss
 parseRule :: MonadError m => (Exp Bool) -> Result (Exp Int) -> m Rule
 parseRule boolexp (NewState newState)
   = do boolFun <- expToFunction boolexp
-       return $ \game agent -> if boolFun game agent
+       return $ \grid agent -> if boolFun grid agent
                                then Just (NewState newState)
                                else Nothing
 
 parseRule boolexp (ChangeAttribute attName intexp)
   = do boolFun <- expToFunction boolexp
        intFun <- expToFunction intexp
-       return $ \game agent -> if boolFun game agent
-                               then Just (ChangeAttribute attName (intFun game agent))
+       return $ \grid agent -> if boolFun grid agent
+                               then Just (ChangeAttribute attName (intFun grid agent))
                                else Nothing
 
 rulesList :: MonadError m => RulesComm -> m [(State, Rule)]
@@ -51,13 +51,13 @@ attributesList NoAtt = []
 attributesList (Attribute s v) = [(s,v)]
 attributesList (SeqAtt att1 att2) = (attributesList att1) ++ (attributesList att2)
 
-parseBinaryExp :: MonadError m => (Exp a) -> (Exp a) -> (a -> a -> b) -> m (Game -> Agent -> b)
+parseBinaryExp :: MonadError m => (Exp a) -> (Exp a) -> (a -> a -> b) -> m (Grid -> Agent -> b)
 parseBinaryExp e1 e2 f
   = do r1 <- expToFunction e1
        r2 <- expToFunction e2
-       return (\game agent -> f (r1 game agent) (r2 game agent))
+       return (\grid agent -> f (r1 grid agent) (r2 grid agent))
 
-expToFunction :: MonadError m => Exp a -> m (Game -> Agent -> a)
+expToFunction :: MonadError m => Exp a -> m (Grid -> Agent -> a)
 expToFunction (Const n) = return (\_ _ -> n)
 expToFunction (TypeCount name neighs) = return (countNeighs agentType name neighs)
 expToFunction (StateCount status neighs) = return (countNeighs agentState status neighs)
@@ -67,7 +67,7 @@ expToFunction (Minus ie1 ie2) = parseBinaryExp ie1 ie2 (-)
 expToFunction (Times ie1 ie2) = parseBinaryExp ie1 ie2 (*)
 expToFunction (Div _ 0) = throw "Div by zero"
 expToFunction (Div ie n) = do r <- expToFunction ie
-                              return (\game agent -> div (r game agent) n)
+                              return (\grid agent -> div (r grid agent) n)
 
 expToFunction ExpFalse = return (\_ _ -> False)
 expToFunction ExpTrue = return (\_ _ -> True)
@@ -77,11 +77,11 @@ expToFunction (Gt ie1 ie2) = parseBinaryExp ie1 ie2 (>)
 expToFunction (And b1 b2) = parseBinaryExp b1 b2 (&&)
 expToFunction (Or b1 b2) = parseBinaryExp b1 b2 (||)
 expToFunction (Not b) = do be1 <- expToFunction b
-                           return (\game agent -> not (be1 game agent))
+                           return (\grid agent -> not (be1 grid agent))
 expToFunction (EqState neighbor stname)
-  = return (\game agent -> (agentState (getNeighbor game neighbor agent)) == stname)
+  = return (\grid agent -> (agentState (getNeighbor grid neighbor agent)) == stname)
 expToFunction (EqAgent neighbor agname)
-  = return (\game agent -> agentType (getNeighbor game neighbor agent) == agname)
+  = return (\grid agent -> agentType (getNeighbor grid neighbor agent) == agname)
 
 checkPredicate :: (MonadState m, MonadError m) => a -> (a -> Bool) -> String -> m ()
 checkPredicate a p s = if p a then throw s else return ()

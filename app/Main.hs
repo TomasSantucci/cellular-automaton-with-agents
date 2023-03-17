@@ -75,7 +75,7 @@ runOptions fp opts
         | otherwise -> runComm ast (optCellSize opts) (optFPS opts)
 
 runComm :: Comm -> Int -> Int -> IO ()
-runComm c cellSize speed
+runComm c cellSize fps
   = case stateErrorGetEnv (runStateError (evalAST c) initEnv) of
       Left e -> print e
-      Right env -> evalSim cellSize speed $ envGetSimulations env
+      Right env -> evalSim cellSize fps $ envGetSimulations env

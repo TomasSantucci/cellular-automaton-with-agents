@@ -40,9 +40,9 @@ instance MonadState StateError where
 
   getAgents = StateError (\s -> Right ((envGetPreparedAgents s) :!: s))
 
-  setAgent name n = StateError (\s -> case findAgent name s of
+  setAgent name n = StateError (\s -> case envFindAgent name s of
                                         Nothing -> Left "Undef Agent"
-                                        Just ag -> Right (() :!: (addSetAgent ag n s)))
+                                        Just ag -> Right (() :!: (envAddSetAgent ag n s)))
 
   unsetAgent name = StateError (\s -> Right (() :!: envUnsetAgent name s))
 

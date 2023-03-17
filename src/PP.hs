@@ -4,11 +4,12 @@ import AST
 import Text.PrettyPrint
 import Prelude hiding ((<>))
 
+tabW :: Int
 tabW = 2
 
 pRes :: Result (Exp Int) -> Doc
 pRes (NewState st)             = text "newState" <+> text st
-pRes (ChangeAttribute att exp) = text "changeAttribute" <+> text att <+> parens (pExp exp)
+pRes (ChangeAttribute att e)   = text "changeAttribute" <+> text att <+> parens (pExp e)
 
 pNeighs :: Neighbors -> Doc
 pNeighs AllNeighbors    = text "all"
@@ -42,13 +43,14 @@ pRules rules = text "rules:" $$ nest tabW (pRulesAux rules)
 pStates :: StatesComm -> Doc
 pStates st = text "states:" $$ nest tabW (pStatesAux st)
   where pStatesAux (SeqSt s1 s2)   = pStatesAux s1 <> comma <+> pStatesAux s2
-        pStatesAux (DefState st _) = text st
+        pStatesAux (DefState s _)  = text s
 
 pAtts :: Attributes -> Doc
 pAtts NoAtt = empty
 pAtts atts = text "attributes:" $$ nest tabW (pAttsAux atts)
   where pAttsAux (Attribute name value) = text name <+> int value
         pAttsAux (SeqAtt a1 a2)         = pAttsAux a1 <> comma <+> pAttsAux a2
+        pAttsAux _                      = empty
 
 pComm :: Comm -> Doc
 pComm (SeqComm c1 c2) = pComm c1 $$ text "" $$ pComm c2

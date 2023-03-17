@@ -3,8 +3,7 @@ module Cellular (runSims) where
 import AST
 import Agents
 import Graphics.Gloss
-import System.Random (newStdGen, StdGen)
-import Data.Vector as V (map, toList, empty, null, Vector)
+import Data.Vector as V (map, toList, Vector)
 
 myTranslate :: Int -> Int -> Picture -> Picture
 myTranslate x y p = translate (fromIntegral x) (fromIntegral y) p
@@ -23,32 +22,32 @@ cellsToPicture (cells,(xDim,yDim)) cellSize = myTranslate xMove yMove grid
         yMove = yDim* (div cellSize 2)
         grid = pictures (V.toList $ V.map (cellToPicture cellSize) cells)
 
-nextModel :: [(Game, Int)] -> [(Game,Int)]
+nextModel :: [(Grid, Int)] -> [(Grid,Int)]
 nextModel [] = []
-nextModel [(game,0)] = [(game,0)]
-nextModel ((game,iterations):rest)
+nextModel [(grid,0)] = [(grid,0)]
+nextModel ((grid,iterations):rest)
   | iterations == 0 = rest
-  | otherwise = ((nextGameState (cells,dimensions)),iterations-1):rest
-    where cells = Prelude.fst game
-          dimensions = Prelude.snd game
+  | otherwise = ((nextGridState (cells,dimensions)),iterations-1):rest
+    where cells = fst grid
+          dimensions = snd grid
 
-drawModel :: Int -> [(Game,Int)] -> Picture
+drawModel :: Int -> [(Grid,Int)] -> Picture
 drawModel _ [] = Blank
-drawModel cellSize ((game,_):r) = cellsToPicture game cellSize
+drawModel cellSize ((grid,_):_) = cellsToPicture grid cellSize
 
-runSims :: [(Game, Int)] -> Int -> Int -> IO ()
-runSims sims cellSize speed
-  = simulate screen (greyN 0.6) speed sims (drawModel cellSize) (\_ _ model -> nextModel model)
-  where screen = InWindow "Simulation" (900,900) (500,0)
-
-nextGameState :: Game -> Game
-nextGameState game@(cells, dimensions)
-  = let newCells = V.map (\ag -> nextAgentState game (agentCurrRules ag) ag) cells
+nextGridState :: Grid -> Grid
+nextGridState grid@(cells, dimensions)
+  = let newCells = V.map (\ag -> nextAgentState grid (agentCurrRules ag) ag) cells
     in (newCells, dimensions)
 
-nextAgentState :: Game -> [Rule] -> Agent -> Agent
+nextAgentState :: Grid -> [Rule] -> Agent -> Agent
 nextAgentState _ [] agent = agent
-nextAgentState game (f:fs) agent = case f game agent of
-                                      Nothing -> nextAgentState game fs agent
+nextAgentState grid (f:fs) agent = case f grid agent of
+                                      Nothing -> nextAgentState grid fs agent
                                       Just (NewState st) -> agentSetState agent st
-                                      Just (ChangeAttribute att v) -> nextAgentState game fs (agentSetAtt agent att v)
+                                      Just (ChangeAttribute att v) -> nextAgentState grid fs (agentSetAtt agent att v)
+
+runSims :: [(Grid, Int)] -> Int -> Int -> IO ()
+runSims sims cellSize fps
+  = simulate screen (greyN 0.6) fps sims (drawModel cellSize) (\_ _ model -> nextModel model)
+  where screen = InWindow "Simulation" (900,900) (500,0)

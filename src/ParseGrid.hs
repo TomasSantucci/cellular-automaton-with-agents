@@ -21,17 +21,17 @@ parseCell = do name <- identifier lis
                state <- identifier lis
                return (Agent name (0,0) state [] [] 0 [])
 
-parseGame :: Parser [Agent]
-parseGame = sepBy parseCell (reservedOp lis ",")
+parseGrid :: Parser [Agent]
+parseGrid = sepBy parseCell (reservedOp lis ",")
 
-getGame :: Parser ([Agent], MyPoint)
-getGame = do x <- natural lis
+getGrid :: Parser ([Agent], MyPoint)
+getGrid = do x <- natural lis
              reservedOp lis ","
              y <- natural lis
-             game <- brackets lis parseGame
-             if (length game) == ((fromIntegral x) * (fromIntegral y))
-               then return (game,(fromIntegral x, fromIntegral y))
+             grid <- brackets lis parseGrid
+             if (length grid) == ((fromIntegral x) * (fromIntegral y))
+               then return (grid,(fromIntegral x, fromIntegral y))
                else return ([],(0,0))
 
 parseFile :: SourceName -> String -> Either ParseError ([Agent], MyPoint)
-parseFile = parse (totParser getGame)
+parseFile = parse (totParser getGrid)

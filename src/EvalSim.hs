@@ -13,14 +13,15 @@ assignPositions dimensions agents
   = V.imap (\idx -> \agent -> agentSetPos agent (idxToPoint idx dimensions)) agents
     where idxToPoint idx (xLim, _) = (mod idx xLim, div idx xLim)
 
-
 handleFileParsing :: String -> String -> IO ([Agent], MyPoint)
 handleFileParsing path contents
   = case parseFile path contents of
       Left _ -> ioError $ userError $ "Error parsing " ++ path
-      Right r -> return r
+      Right (cells,dims) ->
+        if null cells then ioError $ userError $ "Las dimensiones no coinciden en: " ++ path
+                      else return (cells,dims)
 
-createGrid :: Simulation -> IO (Game,Int)
+createGrid :: Simulation -> IO (Grid,Int)
 createGrid (Simulation agents (x,y) iterations)
   = do rng <- newStdGen
        let sortedAgents = agentsExpand $ agentsFixSight agents (x,y)
@@ -37,7 +38,7 @@ createGrid (SimulationPath path iterations agentsDefined)
        return ((cells, dimensions), iterations)
 
 
-simsToGrids :: [Simulation] -> IO [(Game,Int)]
+simsToGrids :: [Simulation] -> IO [(Grid,Int)]
 simsToGrids [] = return []
 simsToGrids (sim:rest)
   = do r2 <- simsToGrids rest
@@ -45,6 +46,6 @@ simsToGrids (sim:rest)
        return (r1:r2)
 
 evalSim :: Int -> Int -> [Simulation] -> IO ()
-evalSim cellSize speed sims
-  = do sims <- simsToGrids sims
-       runSims sims cellSize speed
+evalSim cellSize fps sims
+  = do grids <- simsToGrids sims
+       runSims grids cellSize fps
