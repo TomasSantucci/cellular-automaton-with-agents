@@ -5,6 +5,12 @@ import Agents
 import Graphics.Gloss
 import Data.Vector as V (map, toList, Vector)
 
+screenSize :: (Int,Int)
+screenSize = (900,900)
+
+screenPos :: (Int,Int)
+screenPos = (500,0)
+
 myTranslate :: Int -> Int -> Picture -> Picture
 myTranslate x y p = translate (fromIntegral x) (fromIntegral y) p
 
@@ -50,4 +56,4 @@ nextAgentState grid (f:fs) agent = case f grid agent of
 runSims :: [(Grid, Int)] -> Int -> Int -> IO ()
 runSims sims cellSize fps
   = simulate screen (greyN 0.6) fps sims (drawModel cellSize) (\_ _ model -> nextModel model)
-  where screen = InWindow "Simulation" (900,900) (500,0)
+  where screen = InWindow "Simulation" screenSize screenPos

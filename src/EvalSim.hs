@@ -18,7 +18,7 @@ handleFileParsing path contents
   = case parseFile path contents of
       Left _ -> ioError $ userError $ "Error parsing " ++ path
       Right (cells,dims) ->
-        if null cells then ioError $ userError $ "Las dimensiones no coinciden en: " ++ path
+        if null cells then ioError $ userError $ "Dimensions error in: " ++ path
                       else return (cells,dims)
 
 createGrid :: Simulation -> IO (Grid,Int)
