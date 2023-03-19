@@ -14,20 +14,16 @@ data Env = Env [Simulation] (Pair [(Agent, Int)] Int) [Agent]
 data Simulation
   = Simulation [(Agent,Int)] MyPoint Int
   | SimulationPath String Int [(Agent, Int)]
-  deriving Show
 
 data Agent = Agent {
   agentType :: String,
   agentPoint :: MyPoint,
   agentState :: State,
   agentColors :: [(State,Color)],
-  agentRules :: [(State, Rule)],
+  agentRules :: [(State,Rule)],
   agentSight :: Int,
   agentAttributes :: [(String, Int)]
 }
-
-instance Show Agent where
-  show agent = (agentType agent) ++ "-" ++ (agentState agent)
 
 type Neighbor = Int
 
